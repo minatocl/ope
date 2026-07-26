@@ -28,6 +28,7 @@
   .items-center { align-items: center; } .items-start { align-items: flex-start; }
   .justify-between { justify-content: space-between; } .justify-center { justify-content: center; }
   .gap-1 { gap: 0.25rem; } .gap-2 { gap: 0.5rem; } .gap-3 { gap: 0.75rem; } .gap-4 { gap: 1rem; }
+  .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-cols-7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .shrink-0 { flex-shrink: 0; }
   .overflow-hidden { overflow: hidden; }
@@ -127,6 +128,17 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ================= 設定 =================
 const CLINIC_NAME = "みなとクリニック";
 const CLINIC_NAME_EN = "MINATO CLINIC";
+// 施術メニュー(保存値は ja のまま。イラスト/動画は assets/treatments/)
+const TREATMENTS = [
+    { key: "thread", ja: "糸リフト", labels: { ja: "糸リフト", en: "Thread Lift", zh: "埋线提升", pt: "Lifting com Fios", es: "Hilos Tensores", th: "ร้อยไหม" } },
+    { key: "botox", ja: "ボトックス", labels: { ja: "ボトックス", en: "Botox", zh: "肉毒素", pt: "Botox", es: "Bótox", th: "โบท็อกซ์" } },
+    { key: "hyaluron", ja: "ヒアルロン酸", labels: { ja: "ヒアルロン酸", en: "Hyaluronic Acid", zh: "玻尿酸", pt: "Ácido Hialurônico", es: "Ácido Hialurónico", th: "ฟิลเลอร์ไฮยาลูรอน" } },
+    { key: "salmon", ja: "サーモン注射", labels: { ja: "サーモン注射", en: "Salmon DNA (PDRN)", zh: "三文鱼针 (PDRN)", pt: "Injeção PDRN", es: "Inyección PDRN", th: "ฉีดแซลมอน (PDRN)" } },
+    { key: "maibotsu", ja: "二重埋没", labels: { ja: "二重埋没", en: "Double Eyelid (Non-Incisional)", zh: "双眼皮(埋线)", pt: "Pálpebra Dupla (sem corte)", es: "Párpado Doble (sin corte)", th: "ตาสองชั้น (ไม่ผ่าตัด)" } },
+    { key: "sekkai", ja: "二重全切開", labels: { ja: "二重全切開", en: "Double Eyelid (Incisional)", zh: "双眼皮(全切)", pt: "Pálpebra Dupla (com corte)", es: "Párpado Doble (con corte)", th: "ตาสองชั้น (ผ่าตัด)" } },
+    { key: "kuma", ja: "クマ取り(下眼瞼切除)", labels: { ja: "クマ取り(下眼瞼切除)", en: "Under-Eye Bag Removal", zh: "去眼袋(下睑)", pt: "Remoção de Bolsas", es: "Bolsas de Ojos", th: "ตัดถุงใต้ตา" } },
+];
+const treatAsset = (key, ext) => `assets/treatments/${key}.${ext}`;
 const SLOT_TIMES = ["13:00", "13:30", "14:00"];
 const C = {
     bg: "#F6FAFC",
@@ -559,12 +571,13 @@ function App() {
     const [lookupForm, setLookupForm] = useState({ clinicId: "", phone: "" });
     const [myBookings, setMyBookings] = useState(null);
     const [lookupBusy, setLookupBusy] = useState(false);
-    const [treatType, setTreatType] = useState("thread"); // thread | other
+    const [treatType, setTreatType] = useState("thread"); // TREATMENTS の key | other
     const [treatText, setTreatText] = useState("");
     const [isConsult, setIsConsult] = useState(false);
     // 選択中の施術内容(表示用は言語対応、保存用は日本語/入力そのまま)
-    const treatDisplay = () => (treatType === "thread" ? t("treatment") : treatText.trim());
-    const treatStore = () => (treatType === "thread" ? "糸リフト" : treatText.trim());
+    const selTreat = () => TREATMENTS.find((x) => x.key === treatType);
+    const treatDisplay = () => (treatType === "other" ? treatText.trim() : (selTreat().labels[lang] || selTreat().ja));
+    const treatStore = () => (treatType === "other" ? treatText.trim() : selTreat().ja);
     function dayStatus(dateStr, dow) {
         if (dow === 0)
             return "closed";
@@ -848,12 +861,27 @@ function App() {
                 React.createElement("p", { className: "text-sm leading-relaxed", style: { color: C.gold, fontWeight: 600 } }, t("consultInfo")))),
             React.createElement("div", { className: "mb-4" },
                 React.createElement("label", { className: "text-sm block mb-1.5", style: { color: C.ink, fontWeight: 600 } }, t("treatmentLabel")),
-                React.createElement("div", { className: "flex rounded-xl overflow-hidden", style: { border: `1.5px solid ${C.line}` } }, [["thread", t("treatment")], ["other", t("otherTab")]].map(([k, label]) => (React.createElement("button", { key: k, onClick: () => setTreatType(k), className: "flex-1 py-2.5 text-sm", style: {
+                React.createElement("div", { className: "grid grid-cols-2 gap-2" }, TREATMENTS.map((tr) => {
+                    const sel = treatType === tr.key;
+                    const label = tr.labels[lang] || tr.ja;
+                    return (React.createElement("button", { key: tr.key, onClick: () => setTreatType(tr.key), className: "rounded-xl overflow-hidden", style: {
+                            border: sel ? `2px solid ${C.primary}` : `1.5px solid ${C.line}`,
+                            background: sel ? C.primarySoft : C.card,
+                            boxShadow: sel ? "0 2px 14px rgba(46,127,163,0.25)" : "none",
+                            cursor: "pointer", padding: 0,
+                        } },
+                        sel
+                            ? React.createElement("video", { src: treatAsset(tr.key, "mp4"), poster: treatAsset(tr.key, "webp"), autoPlay: true, loop: true, muted: true, playsInline: true, ref: (el) => { if (el) { el.muted = true; const p = el.play(); if (p && p.catch) p.catch(() => { }); } }, className: "w-full block", style: { aspectRatio: "1 / 1", objectFit: "cover" } })
+                            : React.createElement("img", { src: treatAsset(tr.key, "webp"), alt: label, loading: "lazy", className: "w-full block", style: { aspectRatio: "1 / 1", objectFit: "cover" } }),
+                        React.createElement("div", { className: "px-2 py-2 text-xs", style: { fontWeight: 600, color: sel ? C.primary : C.ink, textAlign: "center", lineHeight: 1.4 } }, label)));
+                })),
+                React.createElement("button", { onClick: () => setTreatType("other"), className: "w-full mt-2 py-2.5 rounded-xl text-sm", style: {
                         fontWeight: 600,
-                        background: treatType === k ? C.primary : C.card,
-                        color: treatType === k ? "#fff" : C.sub,
+                        background: treatType === "other" ? C.primary : C.card,
+                        color: treatType === "other" ? "#fff" : C.sub,
+                        border: `1.5px solid ${treatType === "other" ? C.primary : C.line}`,
                         cursor: "pointer",
-                    } }, label)))),
+                    } }, t("otherTab")),
                 treatType === "other" && (React.createElement("div", { className: "mt-2" },
                     React.createElement("input", { value: treatText, onChange: (e) => setTreatText(e.target.value), placeholder: t("otherPh"), className: "w-full px-4 py-3 rounded-xl text-base outline-none", style: { fontFamily: fontBody, background: C.card, color: C.ink, border: `1.5px solid ${formErr.treatment ? C.danger : C.line}` } }),
                     formErr.treatment && React.createElement("p", { className: "text-xs mt-1", style: { color: C.danger } }, formErr.treatment)))),
