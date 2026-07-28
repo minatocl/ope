@@ -757,7 +757,7 @@ function App() {
                     { l: "80%", d: "10s", s: "16s", z: 3 },
                     { l: "91%", d: "6s", s: "13.5s", z: 5 },
                 ].map((p, i) => (React.createElement("div", { key: i, className: "absolute rounded-full", style: { width: `${p.z}px`, height: `${p.z}px`, left: p.l, bottom: "-6px", background: "rgba(205,240,250,0.75)", boxShadow: "0 0 6px rgba(205,240,250,0.5)", animation: `bubbleUp ${p.s} ease-in ${p.d} infinite` } })))),
-            React.createElement("div", { className: "relative flex flex-wrap justify-center gap-2 pt-6 px-4", style: { animation: "fadeIn 0.8s ease-out both" } }, LANGS.map((l) => (React.createElement("button", { key: l.code, onClick: () => setLang(l.code), className: "px-3 py-1.5 rounded-full text-xs transition-opacity active:opacity-60", style: {
+            React.createElement("div", { className: "relative flex flex-wrap justify-center gap-3 pt-6 px-4", style: { animation: "fadeIn 0.8s ease-out both" } }, LANGS.map((l) => (React.createElement("button", { key: l.code, onClick: () => setLang(l.code), className: "px-4 py-2 rounded-full text-base transition-opacity active:opacity-60", style: {
                     fontFamily: fontBody, fontWeight: 600,
                     background: lang === l.code ? "#BFE6F2" : "rgba(0,0,0,0.15)",
                     color: lang === l.code ? "#0A2433" : SEA.pillText,
