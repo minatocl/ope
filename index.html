@@ -398,11 +398,18 @@ function monthLabel(year, month, lang) {
     return `${MONTH_NAMES[lang][month]} ${year}`;
 }
 function getMonths() {
+    // 予約可能な最初の日(明後日)から2ヶ月分をカバーする月をすべて返す
+    // (月末でも常に2ヶ月分の予約枠が見えるようにする)
     const now = new Date();
-    return [0, 1].map((offset) => {
-        const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-        return { year: first.getFullYear(), month: first.getMonth() };
-    });
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+    const end = new Date(start.getFullYear(), start.getMonth() + 2, start.getDate());
+    const list = [];
+    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (cur < end) {
+        list.push({ year: cur.getFullYear(), month: cur.getMonth() });
+        cur.setMonth(cur.getMonth() + 1);
+    }
+    return list;
 }
 function gcalUrl({ date, time, title, details }) {
     const d = date.replace(/-/g, "");
@@ -552,7 +559,7 @@ function App() {
             cursor: disabled ? "default" : "pointer",
         } }, children));
     function MonthTabs({ monthIdx, onChange, l }) {
-        return (React.createElement("div", { className: "flex rounded-xl overflow-hidden mb-4", style: { border: `1.5px solid ${C.line}` } }, months.map((m, i) => (React.createElement("button", { key: i, onClick: () => onChange(i), className: "flex-1 py-2.5 text-sm", style: {
+        return (React.createElement("div", { className: "flex rounded-xl overflow-hidden mb-4", style: { border: `1.5px solid ${C.line}` } }, months.map((m, i) => (React.createElement("button", { key: i, onClick: () => onChange(i), className: `flex-1 py-2.5 ${months.length >= 3 ? "text-xs" : "text-sm"}`, style: {
                 fontFamily: fontBody, fontWeight: 600,
                 background: monthIdx === i ? C.primary : C.card,
                 color: monthIdx === i ? "#fff" : C.sub,
