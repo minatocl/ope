@@ -420,15 +420,27 @@ function monthLabel(year, month, lang) {
         return `${year}年${month + 1}月`;
     return `${MONTH_NAMES[lang][month]} ${year}`;
 }
+// 受付できる最終日 = 今日の2ヶ月後(サーバー側 create_booking / create_consultation の
+// `p_date > today + interval '2 months'` = too_far 判定と同じ基準)
+const BOOK_AHEAD_MONTHS = 2;
+function lastBookableDate(now = new Date()) {
+    const day = now.getDate();
+    const d = new Date(now.getFullYear(), now.getMonth(), day);
+    d.setMonth(d.getMonth() + BOOK_AHEAD_MONTHS);
+    // 12/31 の2ヶ月後が 3/3 に溢れるのを防ぐ(Postgres と同じく月末に丸める)
+    if (d.getDate() !== day)
+        d.setDate(0);
+    return d;
+}
 function getMonths() {
-    // 予約可能な最初の日(明後日)から2ヶ月分をカバーする月をすべて返す
+    // 予約可能な最初の日(明後日)から最終日(2ヶ月後)までをカバーする月をすべて返す
     // (月末でも常に2ヶ月分の予約枠が見えるようにする)
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
-    const end = new Date(start.getFullYear(), start.getMonth() + 2, start.getDate());
+    const end = lastBookableDate(now);
     const list = [];
     const cur = new Date(start.getFullYear(), start.getMonth(), 1);
-    while (cur < end) {
+    while (cur <= end) {
         list.push({ year: cur.getFullYear(), month: cur.getMonth() });
         cur.setMonth(cur.getMonth() + 1);
     }
@@ -520,6 +532,7 @@ function App() {
     const months = getMonths();
     const today = fmtDate(new Date());
     const tomorrow = fmtDate(new Date(Date.now() + 86400000));
+    const lastBookable = fmtDate(lastBookableDate()); // これより先は2ヶ月超なので受付しない
     // ---------- セッション監視 ----------
     useEffect(() => {
         sb.auth.getSession().then(({ data }) => setSession(data.session));
@@ -685,6 +698,8 @@ function App() {
             return "closed";
         if (dateStr <= tomorrow)
             return "past";
+        if (dateStr > lastBookable)
+            return "closed";
         const closed = closedSlots[dateStr] || [];
         if (SLOT_TIMES.every((tt) => closed.includes(tt)))
             return "closed";
