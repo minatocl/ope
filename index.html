@@ -199,6 +199,46 @@ const TR = {
     treatment: { ja: "糸リフト", en: "Thread Lift", zh: "埋线提升", pt: "Lifting com Fios", es: "Lifting con Hilos", th: "ร้อยไหม" },
     ctaReserve: { ja: "ご予約はこちら", en: "Book an Appointment", zh: "立即预约", pt: "Fazer Reserva", es: "Reservar Cita", th: "จองคิว" },
     lookupLink: { ja: "予約の確認・キャンセル", en: "Check / Cancel Reservation", zh: "查询・取消预约", pt: "Consultar / Cancelar Reserva", es: "Consultar / Cancelar Cita", th: "ตรวจสอบ / ยกเลิกการจอง" },
+    noticeTitle: {
+        ja: "ご予約の前にご確認ください",
+        en: "Please read before booking",
+        zh: "预约前请确认以下事项",
+        pt: "Leia antes de reservar",
+        es: "Lea antes de reservar",
+        th: "โปรดอ่านก่อนทำการจอง",
+    },
+    noticeIsTreatment: {
+        ja: "こちらは、実際に処置を受けていただくためのご予約です。処置内容のご説明・ご相談のみをご希望の方は、このページからではなく通常の診察にお越しください。",
+        en: "This reservation is for actually receiving the treatment. If you only wish to ask about or discuss a treatment, please visit us for a regular consultation instead of booking here.",
+        zh: "本预约用于实际接受处置(施术)。如果您只想了解或咨询处置内容,请不要在此预约,而是前来普通门诊就诊。",
+        pt: "Esta reserva é para realizar de fato o procedimento. Se você deseja apenas informações ou uma consulta sobre o procedimento, venha a uma consulta normal em vez de reservar aqui.",
+        es: "Esta reserva es para realizar efectivamente el procedimiento. Si solo desea información o una consulta sobre el procedimiento, acuda a una consulta normal en lugar de reservar aquí.",
+        th: "การจองนี้เป็นการจองเพื่อเข้ารับหัตถการจริง หากต้องการเพียงสอบถามหรือปรึกษารายละเอียดหัตถการ กรุณามาตรวจตามปกติแทนการจองที่หน้านี้",
+    },
+    noticeFasting: {
+        ja: "眠った状態での処置をご希望の方は、当日は朝食・昼食を召し上がらずにお越しください。",
+        en: "If you wish to be asleep (sedated) during the treatment, please come without eating breakfast or lunch that day.",
+        zh: "如希望在睡眠(镇静)状态下接受处置,当天请勿进食早餐和午餐。",
+        pt: "Se desejar fazer o procedimento dormindo (com sedação), venha sem tomar café da manhã e sem almoçar nesse dia.",
+        es: "Si desea realizar el procedimiento dormido (con sedación), venga sin desayunar ni almorzar ese día.",
+        th: "หากต้องการทำหัตถการขณะหลับ (ใช้ยาระงับความรู้สึก) กรุณางดอาหารเช้าและอาหารกลางวันในวันนัด",
+    },
+    noticeNoMakeup: {
+        ja: "処置をする部位は、お化粧などをせずにお越しください。",
+        en: "Please come without makeup or cosmetics on the area to be treated.",
+        zh: "接受处置的部位请勿化妆,请素颜前来。",
+        pt: "Venha sem maquiagem ou cosméticos na área que será tratada.",
+        es: "Venga sin maquillaje ni cosméticos en la zona que será tratada.",
+        th: "กรุณาอย่าแต่งหน้าหรือทาเครื่องสำอางบริเวณที่จะทำหัตถการ",
+    },
+    noticeAgree: {
+        ja: "確認しました ── 予約へ進む",
+        en: "I understand — Continue",
+        zh: "已确认,继续预约",
+        pt: "Entendi — Continuar",
+        es: "Entendido — Continuar",
+        th: "รับทราบแล้ว — ดำเนินการต่อ",
+    },
     stepMenu: { ja: "メニュー", en: "Menu", zh: "项目", pt: "Menu", es: "Menú", th: "เมนู" },
     stepDate: { ja: "日付", en: "Date", zh: "日期", pt: "Data", es: "Fecha", th: "วันที่" },
     stepTime: { ja: "時間", en: "Time", zh: "时间", pt: "Hora", es: "Hora", th: "เวลา" },
@@ -890,7 +930,7 @@ function App() {
                         React.createElement("text", { x: "50%", y: "118", textAnchor: "middle", fontFamily: "Didot, 'Bodoni 72', 'Bodoni MT', 'Playfair Display', serif", fontSize: "112", fill: "#3E7A99", opacity: "0.7", transform: "matrix(1 0 0 -1 0 250)" }, "M"),
                         React.createElement("line", { x1: "0", y1: "125", x2: "100%", y2: "125", stroke: "#C9A86A", strokeWidth: "1" }),
                         React.createElement("text", { x: "50%", y: "244", textAnchor: "middle", fontFamily: fontBody, fontSize: "15", letterSpacing: "0.35em", fill: "#9FD8EA" }, CLINIC_NAME_EN)),
-                    React.createElement("button", { onClick: () => { setMenuErr(""); setPScreen("menu"); }, className: "w-full max-w-xs mx-auto block py-4 rounded-full text-base transition-opacity active:opacity-70 mb-5", style: { fontFamily: fontBody, fontWeight: 700, letterSpacing: "0.1em", background: "linear-gradient(135deg, #A8DEEF 0%, #6FBFDB 100%)", color: "#0A2433", boxShadow: "0 6px 30px rgba(110,190,220,0.45)", border: "none", cursor: "pointer" } }, t("ctaReserve")),
+                    React.createElement("button", { onClick: () => { setMenuErr(""); setPScreen("notice"); }, className: "w-full max-w-xs mx-auto block py-4 rounded-full text-base transition-opacity active:opacity-70 mb-5", style: { fontFamily: fontBody, fontWeight: 700, letterSpacing: "0.1em", background: "linear-gradient(135deg, #A8DEEF 0%, #6FBFDB 100%)", color: "#0A2433", boxShadow: "0 6px 30px rgba(110,190,220,0.45)", border: "none", cursor: "pointer" } }, t("ctaReserve")),
                     React.createElement("button", { onClick: () => { setMyBookings(null); setPScreen("lookup"); }, className: "text-sm underline underline-offset-4 active:opacity-60", style: { color: SEA.pillText, fontFamily: fontBody, background: "none", border: "none", cursor: "pointer" } }, t("lookupLink")))),
             React.createElement("footer", { className: "relative text-center pb-6" },
                 React.createElement("button", { onClick: () => { setLoginErr(""); setMode("login"); }, className: "text-xs", style: { color: SEA.faint, background: "none", border: "none", cursor: "pointer" } }, t("staffLink")))));
@@ -914,6 +954,24 @@ function App() {
                 const dow = new Date(year, month, d).getDay();
                 return renderDay(dateStr, d, dow);
             }))));
+    }
+    function PatientNotice() {
+        const items = [
+            { icon: "⚠️", text: t("noticeIsTreatment"), strong: true },
+            { icon: "🍽️", text: t("noticeFasting") },
+            { icon: "💄", text: t("noticeNoMakeup") },
+        ];
+        return (React.createElement("div", null,
+            React.createElement("p", { className: "text-base text-center mt-2 mb-4", style: { color: C.ink, fontWeight: 700 } }, t("noticeTitle")),
+            React.createElement("div", { className: "flex flex-col gap-3" }, items.map((it, i) => (React.createElement("div", { key: i, className: "rounded-2xl px-4 py-4 flex items-start gap-3", style: {
+                    background: it.strong ? C.dangerSoft : C.card,
+                    border: `1.5px solid ${it.strong ? C.danger : C.line}`,
+                } },
+                React.createElement("span", { className: "text-xl leading-none", style: { marginTop: "2px" } }, it.icon),
+                React.createElement("p", { className: "text-sm", style: { margin: 0, lineHeight: 1.8, color: it.strong ? C.danger : C.ink, fontWeight: it.strong ? 600 : 500 } }, it.text))))),
+            React.createElement("div", { className: "mt-6 flex flex-col gap-3" },
+                React.createElement(Btn, { onClick: () => { setMenuErr(""); setPScreen("menu"); } }, t("noticeAgree")),
+                React.createElement(Btn, { variant: "ghost", onClick: () => setPScreen("landing") }, t("backToTop")))));
     }
     function PatientMenu() {
         const toggleTreat = (k) => {
@@ -1552,6 +1610,7 @@ function App() {
             React.createElement("div", { className: "w-10 h-px mx-auto mt-3", style: { background: C.gold } })),
         React.createElement("main", { className: "max-w-md mx-auto px-4 pb-8 w-full flex-1", style: { boxSizing: "border-box" } }, loading ? (React.createElement("p", { className: "text-center py-10 text-sm", style: { color: C.sub } }, t("loadingAvail"))) : (React.createElement(React.Fragment, null,
             error && pScreen === "calendar" && (React.createElement("p", { className: "text-sm text-center mb-3", style: { color: C.danger } }, error)),
+            pScreen === "notice" && PatientNotice(),
             pScreen === "menu" && PatientMenu(),
             pScreen === "calendar" && PatientCalendar(),
             pScreen === "time" && PatientTime(),
