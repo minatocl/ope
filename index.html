@@ -142,6 +142,21 @@ const TREATMENTS = [
     { key: "kuma", ja: "クマ取り(下眼瞼切除)", price: "¥65,000", labels: { ja: "クマ取り(下眼瞼切除)", en: "Under-Eye Bag Removal", zh: "去眼袋(下睑)", pt: "Remoção de Bolsas", es: "Bolsas de Ojos", th: "ตัดถุงใต้ตา" } },
 ];
 const treatAsset = (key, ext) => `assets/treatments/${key}.${ext}`;
+// 施術共通の一般的リスク(同意ページ表示用)。文言を変えたら RISK_VERSION を上げ、
+// sync/consent-template.mjs の日本語リストも同じ内容に合わせること
+const RISK_VERSION = "2026-10-09.1";
+const RISKS = [
+    { ja: "痛み・腫れ・内出血が出ることがあります(数日〜数週間で軽快します)", en: "Pain, swelling, or bruising may occur (usually subsides within days to weeks)", zh: "可能出现疼痛、肿胀、瘀青(通常数天至数周内消退)", pt: "Dor, inchaço ou hematomas podem ocorrer (geralmente desaparecem em dias a semanas)", es: "Puede haber dolor, hinchazón o hematomas (suelen desaparecer en días o semanas)", th: "อาจมีอาการปวด บวม หรือรอยช้ำ (มักหายภายในไม่กี่วันถึงไม่กี่สัปดาห์)" },
+    { ja: "出血や血腫(血のかたまり)が生じることがあります", en: "Bleeding or hematoma (blood collection) may occur", zh: "可能发生出血或血肿", pt: "Sangramento ou hematoma podem ocorrer", es: "Puede producirse sangrado o hematoma", th: "อาจมีเลือดออกหรือก้อนเลือดคั่ง" },
+    { ja: "感染を起こすことがあり、抗生剤の内服や追加処置が必要になる場合があります", en: "Infection may occur and may require antibiotics or additional treatment", zh: "可能发生感染,需服用抗生素或追加处置", pt: "Infecção pode ocorrer, exigindo antibióticos ou tratamento adicional", es: "Puede producirse una infección que requiera antibióticos o tratamiento adicional", th: "อาจติดเชื้อ ซึ่งอาจต้องใช้ยาปฏิชีวนะหรือการรักษาเพิ่มเติม" },
+    { ja: "麻酔薬・使用薬剤によるアレルギーや気分不良が起こることがあります", en: "Allergic reactions or discomfort due to anesthetics or medications may occur", zh: "麻醉药或药物可能引起过敏或不适", pt: "Reações alérgicas ou mal-estar por anestésicos ou medicamentos podem ocorrer", es: "Pueden producirse reacciones alérgicas o malestar por anestésicos o medicamentos", th: "อาจแพ้ยาชาหรือยาที่ใช้ หรือรู้สึกไม่สบาย" },
+    { ja: "傷あとや色素沈着が残ることがあります", en: "Scarring or pigmentation may remain", zh: "可能留下疤痕或色素沉着", pt: "Cicatrizes ou pigmentação podem permanecer", es: "Pueden quedar cicatrices o pigmentación", th: "อาจมีแผลเป็นหรือรอยดำ" },
+    { ja: "仕上がりには個人差があり、左右差やイメージとの違いが生じることがあります", en: "Results vary by individual; asymmetry or results different from your expectations may occur", zh: "效果因人而异,可能出现左右不对称或与预期不符", pt: "Os resultados variam; assimetria ou diferença do esperado pode ocorrer", es: "Los resultados varían; puede haber asimetría o diferencias con lo esperado", th: "ผลลัพธ์แตกต่างกันในแต่ละบุคคล อาจไม่สมมาตรหรือต่างจากที่คาดไว้" },
+    { ja: "糸や注入物による凹凸・違和感、まれに糸の露出が生じることがあります", en: "Irregularities or discomfort from threads or fillers, and rarely thread exposure, may occur", zh: "线材或注射物可能造成凹凸不平、异物感,极少数情况下线材外露", pt: "Irregularidades ou desconforto por fios/preenchedores e, raramente, exposição do fio podem ocorrer", es: "Pueden producirse irregularidades o molestias por hilos/rellenos y, raramente, exposición del hilo", th: "อาจมีผิวไม่เรียบหรือรู้สึกระคายจากไหม/สารเติมเต็ม และพบไหมโผล่ได้น้อยมาก" },
+    { ja: "神経の損傷により、しびれや感覚の低下が生じることがあります(多くは一時的です)", en: "Nerve injury may cause numbness or reduced sensation (usually temporary)", zh: "神经损伤可能导致麻木或感觉减退(多为暂时性)", pt: "Lesão nervosa pode causar dormência ou redução da sensibilidade (geralmente temporária)", es: "Una lesión nerviosa puede causar entumecimiento o pérdida de sensibilidad (generalmente temporal)", th: "การบาดเจ็บของเส้นประสาทอาจทำให้ชาหรือความรู้สึกลดลง (ส่วนใหญ่เป็นชั่วคราว)" },
+    { ja: "効果の持続には個人差があり、再施術が必要になる場合があります", en: "Duration of results varies; repeat treatment may be necessary", zh: "效果维持时间因人而异,可能需要再次施术", pt: "A duração do efeito varia; novo procedimento pode ser necessário", es: "La duración del efecto varía; puede ser necesario repetir el procedimiento", th: "ระยะเวลาของผลลัพธ์แตกต่างกัน อาจต้องทำซ้ำ" },
+    { ja: "血管閉塞などの重い合併症がごくまれに起こることがあります。強い痛みや皮膚の色の変化など異常を感じた場合は、すぐにクリニックへご連絡ください", en: "Serious complications such as vascular occlusion are very rare but possible. Contact the clinic immediately if you notice severe pain or skin color changes", zh: "极少数情况下可能发生血管栓塞等严重并发症。如出现剧烈疼痛或皮肤颜色变化,请立即联系诊所", pt: "Complicações graves como oclusão vascular são muito raras, mas possíveis. Contate a clínica imediatamente se notar dor intensa ou mudança na cor da pele", es: "Complicaciones graves como la oclusión vascular son muy raras pero posibles. Contacte a la clínica de inmediato si nota dolor intenso o cambios de color en la piel", th: "ภาวะแทรกซ้อนร้ายแรง เช่น หลอดเลือดอุดตัน พบได้น้อยมาก หากมีอาการปวดรุนแรงหรือสีผิวเปลี่ยน กรุณาติดต่อคลินิกทันที" },
+];
 // ボトックス/ヒアルロン酸のみの予約は選んだ1枠だけ埋める。他の施術を含む予約は終日ブロック
 const LIGHT_TREATMENT_KEYS = ["botox", "hyaluron"];
 const LIGHT_TREATMENT_JA = TREATMENTS.filter((x) => LIGHT_TREATMENT_KEYS.includes(x.key)).map((x) => x.ja);
@@ -239,6 +254,33 @@ const TR = {
         es: "Entendido — Continuar",
         th: "รับทราบแล้ว — ดำเนินการต่อ",
     },
+    noticeCancelPolicy: {
+        ja: "キャンセルされる場合は、必ず本サイトの「予約の確認・キャンセル」からご連絡ください。ご連絡のない無断キャンセルは、キャンセル料を申し受ける場合があります。",
+        en: "If you need to cancel, always do so via “Check / Cancel Reservation” on this site. No-shows without notice may be subject to a cancellation fee.",
+        zh: "如需取消,请务必通过本网站的「查询・取消预约」告知。未经告知的无故取消,可能收取取消费用。",
+        pt: "Se precisar cancelar, faça-o sempre por “Consultar / Cancelar Reserva” neste site. Faltas sem aviso podem estar sujeitas a taxa de cancelamento.",
+        es: "Si necesita cancelar, hágalo siempre mediante “Consultar / Cancelar Cita” en este sitio. Las ausencias sin aviso pueden estar sujetas a un cargo por cancelación.",
+        th: "หากต้องการยกเลิก กรุณาแจ้งผ่าน “ตรวจสอบ / ยกเลิกการจอง” บนเว็บไซต์นี้ทุกครั้ง การไม่มาโดยไม่แจ้งอาจมีค่าธรรมเนียมการยกเลิก",
+    },
+    consentTitle: { ja: "施術のリスクについて", en: "Treatment Risks", zh: "施术风险须知", pt: "Riscos do Procedimento", es: "Riesgos del Procedimiento", th: "ความเสี่ยงของหัตถการ" },
+    consentIntro: {
+        ja: "すべての施術には、以下のような一般的なリスク・副作用があります。内容をご確認のうえ、同意いただける場合のみ次へお進みください。",
+        en: "All treatments carry the following general risks and side effects. Please read them and proceed only if you agree.",
+        zh: "所有施术均存在以下一般风险和副作用。请确认内容,同意后再继续。",
+        pt: "Todos os procedimentos apresentam os seguintes riscos e efeitos colaterais gerais. Leia e prossiga apenas se concordar.",
+        es: "Todos los procedimientos conllevan los siguientes riesgos y efectos secundarios generales. Léalos y continúe solo si está de acuerdo.",
+        th: "หัตถการทุกชนิดมีความเสี่ยงและผลข้างเคียงทั่วไปดังต่อไปนี้ กรุณาอ่านและดำเนินการต่อเมื่อยินยอมเท่านั้น",
+    },
+    consentCheck: {
+        ja: "上記のリスクを理解し、同意します",
+        en: "I understand and agree to the risks above",
+        zh: "我已理解并同意上述风险",
+        pt: "Compreendo e concordo com os riscos acima",
+        es: "Comprendo y acepto los riesgos anteriores",
+        th: "ฉันเข้าใจและยินยอมรับความเสี่ยงข้างต้น",
+    },
+    consentNext: { ja: "同意して次へ", en: "Agree and Continue", zh: "同意并继续", pt: "Concordar e Continuar", es: "Aceptar y Continuar", th: "ยินยอมและดำเนินการต่อ" },
+    consentErr: { ja: "同意のチェックをお願いします", en: "Please check the consent box", zh: "请勾选同意", pt: "Marque a caixa de consentimento", es: "Marque la casilla de consentimiento", th: "กรุณาทำเครื่องหมายยินยอม" },
     stepMenu: { ja: "メニュー", en: "Menu", zh: "项目", pt: "Menu", es: "Menú", th: "เมนู" },
     stepDate: { ja: "日付", en: "Date", zh: "日期", pt: "Data", es: "Fecha", th: "วันที่" },
     stepTime: { ja: "時間", en: "Time", zh: "时间", pt: "Hora", es: "Hora", th: "เวลา" },
@@ -314,12 +356,12 @@ const TR = {
     bookingNoLabel: { ja: "予約番号", en: "Booking No.", zh: "预约编号", pt: "Nº da reserva", es: "Nº de reserva", th: "หมายเลขการจอง" },
     addCal: { ja: "📅 カレンダーに追加して忘れず来院", en: "📅 Add to calendar", zh: "📅 添加到日历", pt: "📅 Adicionar ao calendário", es: "📅 Añadir al calendario", th: "📅 เพิ่มลงปฏิทิน" },
     cancelNote: {
-        ja: "キャンセルはご予約前日の12:00まで「予約の確認・キャンセル」から承ります。それ以降はお電話にてご連絡ください。",
-        en: "Cancellations are accepted via “Check / Cancel Reservation” until 12:00 noon the day before. After that, please call the clinic.",
-        zh: "取消预约请在预约前一天中午12:00前通过「查询・取消预约」办理。逾期请致电诊所。",
-        pt: "Cancelamentos são aceitos por “Consultar / Cancelar Reserva” até 12h do dia anterior. Depois disso, ligue para a clínica.",
-        es: "Las cancelaciones se aceptan mediante “Consultar / Cancelar Cita” hasta las 12:00 del día anterior. Después, llame a la clínica.",
-        th: "ยกเลิกได้ผ่าน “ตรวจสอบ / ยกเลิกการจอง” จนถึงเที่ยงวันของวันก่อนนัด หลังจากนั้นกรุณาโทรติดต่อคลินิก",
+        ja: "キャンセルはご予約前日の12:00まで「予約の確認・キャンセル」から承ります。それ以降はお電話にてご連絡ください。ご連絡のない無断キャンセルは、キャンセル料を申し受ける場合があります。",
+        en: "Cancellations are accepted via “Check / Cancel Reservation” until 12:00 noon the day before. After that, please call the clinic. No-shows without notice may be subject to a cancellation fee.",
+        zh: "取消预约请在预约前一天中午12:00前通过「查询・取消预约」办理。逾期请致电诊所。未经告知的无故取消,可能收取取消费用。",
+        pt: "Cancelamentos são aceitos por “Consultar / Cancelar Reserva” até 12h do dia anterior. Depois disso, ligue para a clínica. Faltas sem aviso podem estar sujeitas a taxa de cancelamento.",
+        es: "Las cancelaciones se aceptan mediante “Consultar / Cancelar Cita” hasta las 12:00 del día anterior. Después, llame a la clínica. Las ausencias sin aviso pueden estar sujetas a un cargo por cancelación.",
+        th: "ยกเลิกได้ผ่าน “ตรวจสอบ / ยกเลิกการจอง” จนถึงเที่ยงวันของวันก่อนนัด หลังจากนั้นกรุณาโทรติดต่อคลินิก การไม่มาโดยไม่แจ้งอาจมีค่าธรรมเนียมการยกเลิก",
     },
     cancelLocked: {
         ja: "キャンセル期限(前日12:00)を過ぎています。お手数ですがクリニックへお電話ください。",
@@ -714,6 +756,7 @@ function App() {
     const [submitting, setSubmitting] = useState(false);
     const [lookupForm, setLookupForm] = useState({ clinicId: "", phone: "" });
     const [cancelReason, setCancelReason] = useState("");
+    const [consentChecked, setConsentChecked] = useState(false);
     const [myBookings, setMyBookings] = useState(null);
     const [lookupBusy, setLookupBusy] = useState(false);
     const [treatSel, setTreatSel] = useState([]); // TREATMENTS の key / "other"(複数選択可)
@@ -778,7 +821,7 @@ function App() {
         setSubmitting(true);
         setError("");
         try {
-            const { data, error: err } = await sb.rpc("create_booking", {
+            let { data, error: err } = await sb.rpc("create_booking", {
                 p_date: selDate,
                 p_time: selTime,
                 p_name: form.name.trim(),
@@ -786,7 +829,21 @@ function App() {
                 p_phone: form.phone.trim(),
                 p_lang: lang,
                 p_treatment: treatStore(),
+                p_consented: consentChecked,
+                p_risk_version: RISK_VERSION,
             });
+            if (err && err.code === "PGRST202") {
+                // DB側が同意記録未対応(マイグレーション未適用)でも予約自体は通す
+                ({ data, error: err } = await sb.rpc("create_booking", {
+                    p_date: selDate,
+                    p_time: selTime,
+                    p_name: form.name.trim(),
+                    p_clinic_id: form.clinicId.trim(),
+                    p_phone: form.phone.trim(),
+                    p_lang: lang,
+                    p_treatment: treatStore(),
+                }));
+            }
             if (err)
                 throw err;
             if (!data.ok) {
@@ -973,6 +1030,7 @@ function App() {
             { icon: "⚠️", text: t("noticeIsTreatment"), strong: true },
             { icon: "🍽️", text: t("noticeFasting") },
             { icon: "💄", text: t("noticeNoMakeup") },
+            { icon: "📅", text: t("noticeCancelPolicy") },
         ];
         return (React.createElement("div", null,
             React.createElement("p", { className: "text-base text-center mt-2 mb-4", style: { color: C.ink, fontWeight: 700 } }, t("noticeTitle")),
@@ -1000,7 +1058,8 @@ function App() {
                 setMenuErr(t("errTreatment"));
                 return;
             }
-            setPScreen("calendar");
+            setConsentChecked(false); // 毎回あらためて同意してもらう
+            setPScreen("consent");
         };
         return (React.createElement("div", null,
             React.createElement(StepDots, { step: 0 }),
@@ -1035,6 +1094,20 @@ function App() {
             React.createElement("div", { className: "mt-5 flex flex-col gap-3" },
                 React.createElement(Btn, { onClick: goNext }, t("menuNext")),
                 React.createElement(Btn, { variant: "ghost", onClick: () => setPScreen("landing") }, t("backToTop")))));
+    }
+    function PatientConsent() {
+        return (React.createElement("div", null,
+            React.createElement("h2", { className: "text-lg text-center mb-2", style: { fontFamily: fontDisplay, color: C.ink } }, t("consentTitle")),
+            React.createElement("p", { className: "text-sm leading-relaxed mb-3", style: { color: C.sub } }, t("consentIntro")),
+            React.createElement("div", { className: "rounded-2xl px-4 py-3 mb-4", style: { background: C.card, border: `1px solid ${C.line}` } }, RISKS.map((r, i) => (React.createElement("div", { key: i, className: "flex gap-2 py-1.5 text-sm leading-relaxed", style: { color: C.ink, borderTop: i === 0 ? "none" : `1px solid ${C.line}` } },
+                React.createElement("span", { style: { color: C.primary, fontWeight: 700, flexShrink: 0 } }, "•"),
+                React.createElement("span", null, r[lang] || r.ja))))),
+            React.createElement("label", { className: "flex items-start gap-3 rounded-2xl px-4 py-3.5 mb-4", style: { background: consentChecked ? C.primarySoft : C.card, border: `2px solid ${consentChecked ? C.primary : C.line}`, cursor: "pointer" } },
+                React.createElement("input", { type: "checkbox", checked: consentChecked, onChange: (e) => setConsentChecked(e.target.checked), style: { width: "20px", height: "20px", marginTop: "1px", accentColor: C.primary, flexShrink: 0 } }),
+                React.createElement("span", { className: "text-sm leading-relaxed", style: { color: C.ink, fontWeight: 700 } }, t("consentCheck"))),
+            React.createElement("div", { className: "flex flex-col gap-3" },
+                React.createElement(Btn, { onClick: () => setPScreen("calendar"), disabled: !consentChecked }, t("consentNext")),
+                React.createElement(Btn, { variant: "ghost", onClick: () => setPScreen("menu") }, t("backToMenu")))));
     }
     function PatientCalendar() {
         return (React.createElement("div", null,
@@ -1630,6 +1703,7 @@ function App() {
             error && pScreen === "calendar" && (React.createElement("p", { className: "text-sm text-center mb-3", style: { color: C.danger } }, error)),
             pScreen === "notice" && PatientNotice(),
             pScreen === "menu" && PatientMenu(),
+            pScreen === "consent" && PatientConsent(),
             pScreen === "calendar" && PatientCalendar(),
             pScreen === "time" && PatientTime(),
             pScreen === "form" && PatientForm(),
