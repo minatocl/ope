@@ -389,6 +389,8 @@ const TR = {
         th: "ไม่พบการจอง กรุณาตรวจสอบข้อมูล",
     },
     cancelThis: { ja: "この予約を取り消す", en: "Cancel this reservation", zh: "取消此预约", pt: "Cancelar esta reserva", es: "Cancelar esta cita", th: "ยกเลิกการจองนี้" },
+    cancelReasonLabel: { ja: "キャンセル理由(任意)", en: "Reason for cancellation (optional)", zh: "取消原因(可选)", pt: "Motivo do cancelamento (opcional)", es: "Motivo de la cancelación (opcional)", th: "เหตุผลในการยกเลิก (ไม่บังคับ)" },
+    cancelReasonPh: { ja: "例: 体調不良のため", en: "e.g. feeling unwell", zh: "例: 身体不适", pt: "ex.: mal-estar", es: "ej.: malestar", th: "เช่น ไม่สบาย" },
     cancelConfirm: {
         ja: (d, tt) => `${d} ${tt} のご予約を取り消しますか?`,
         en: (d, tt) => `Cancel your reservation on ${d} at ${tt}?`,
@@ -711,6 +713,7 @@ function App() {
     const [bookingNo, setBookingNo] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [lookupForm, setLookupForm] = useState({ clinicId: "", phone: "" });
+    const [cancelReason, setCancelReason] = useState("");
     const [myBookings, setMyBookings] = useState(null);
     const [lookupBusy, setLookupBusy] = useState(false);
     const [treatSel, setTreatSel] = useState([]); // TREATMENTS の key / "other"(複数選択可)
@@ -860,17 +863,27 @@ function App() {
         if (!window.confirm(t("cancelConfirm", localDate(rec.date, lang), rec.time)))
             return;
         try {
-            const { data, error: err } = await sb.rpc("cancel_my_booking", {
+            let { data, error: err } = await sb.rpc("cancel_my_booking", {
                 p_clinic_id: lookupForm.clinicId.trim(),
                 p_phone: lookupForm.phone.trim(),
                 p_date: rec.date,
+                p_reason: cancelReason.trim().slice(0, 200),
             });
+            if (err && err.code === "PGRST202") {
+                // DB側がまだ p_reason 未対応(マイグレーション未適用)でも旧3引数で取り消せるように
+                ({ data, error: err } = await sb.rpc("cancel_my_booking", {
+                    p_clinic_id: lookupForm.clinicId.trim(),
+                    p_phone: lookupForm.phone.trim(),
+                    p_date: rec.date,
+                }));
+            }
             if (err)
                 throw err;
             if (!data.ok) {
                 setError(t(ERR_KEY[data.error] || "errCancel"));
                 return;
             }
+            setCancelReason("");
             setMyBookings((prev) => prev.filter((b) => b.date !== rec.date));
             loadPublic(); // 枠単位の空き状況を取り直す
         }
@@ -1189,7 +1202,10 @@ function App() {
                     t("bookingNoLabel"),
                     " ",
                     b.bookingNo),
-                cancelDeadlinePassed(b.date) ? (React.createElement("div", { className: "rounded-xl px-3 py-2.5 text-xs leading-relaxed", style: { background: C.goldSoft, color: C.gold, fontWeight: 600 } }, t("cancelLocked"))) : (React.createElement(Btn, { variant: "danger", onClick: () => patientCancel(b) }, t("cancelThis"))))))))),
+                cancelDeadlinePassed(b.date) ? (React.createElement("div", { className: "rounded-xl px-3 py-2.5 text-xs leading-relaxed", style: { background: C.goldSoft, color: C.gold, fontWeight: 600 } }, t("cancelLocked"))) : (React.createElement("div", null,
+                    React.createElement("p", { className: "text-xs mb-1", style: { color: C.sub, fontWeight: 600 } }, t("cancelReasonLabel")),
+                    React.createElement("textarea", { value: cancelReason, onChange: (e) => setCancelReason(e.target.value), placeholder: t("cancelReasonPh"), rows: 2, maxLength: 200, className: "w-full px-3 py-2 rounded-xl text-sm outline-none mb-2", style: { fontFamily: fontBody, background: C.bg, color: C.ink, border: `1.5px solid ${C.line}`, boxSizing: "border-box", resize: "none" } }),
+                    React.createElement(Btn, { variant: "danger", onClick: () => patientCancel(b) }, t("cancelThis")))))))))),
             React.createElement("div", { className: "mt-5" },
                 React.createElement(Btn, { variant: "ghost", onClick: () => setPScreen("landing") }, t("backToTop")))));
     }
