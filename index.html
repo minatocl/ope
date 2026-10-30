@@ -164,6 +164,9 @@ const LIGHT_TREATMENT_JA = TREATMENTS.filter((x) => LIGHT_TREATMENT_KEYS.include
 const isLightTreatmentText = (s) => !!s && String(s).split("、").every((p) => LIGHT_TREATMENT_JA.includes(p.trim()));
 const SLOT_TIMES = ["13:00", "13:30", "14:00"];
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+// 診察券番号: 全角数字→半角、数字以外(「ID」など)は除去。DB側は 3〜8桁の数字・全部0は不可
+const normClinicId = (s) => String(s || "").replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[^0-9]/g, "");
+const isValidClinicId = (s) => /^[0-9]{3,8}$/.test(s) && !/^0+$/.test(s);
 const C = {
     bg: "#F6FAFC",
     bgAdmin: "#EFF5F8",
@@ -336,6 +339,22 @@ const TR = {
     fieldPhone: { ja: "携帯電話番号", en: "Mobile phone number", zh: "手机号码", pt: "Número de celular", es: "Número de móvil", th: "หมายเลขโทรศัพท์มือถือ" },
     fieldEmail: { ja: "メールアドレス(予約確認メールをお送りします)", en: "Email (we will send a confirmation)", zh: "电子邮箱(将发送预约确认邮件)", pt: "E-mail (enviaremos a confirmação)", es: "Correo electrónico (enviaremos la confirmación)", th: "อีเมล (เราจะส่งอีเมลยืนยันการจอง)" },
     errEmail: { ja: "メールアドレスを正しく入力してください", en: "Please enter a valid email address", zh: "请输入正确的电子邮箱", pt: "Insira um e-mail válido", es: "Ingrese un correo válido", th: "กรุณากรอกอีเมลที่ถูกต้อง" },
+    errIdFormat: {
+        ja: "診察券番号は診察券に書かれている数字で入力してください。診察券をお持ちでない方は、先に通常の診察にお越しください。",
+        en: "Enter the number printed on your patient card. If you do not have a card yet, please visit us for a regular consultation first.",
+        zh: "请输入诊察券上印的数字。如果您还没有诊察券,请先来普通门诊就诊。",
+        pt: "Digite o número impresso no seu cartão de paciente. Se ainda não tem cartão, venha primeiro a uma consulta normal.",
+        es: "Ingrese el número impreso en su tarjeta de paciente. Si aún no tiene tarjeta, acuda primero a una consulta normal.",
+        th: "กรุณากรอกหมายเลขที่พิมพ์บนบัตรผู้ป่วย หากยังไม่มีบัตร กรุณามาตรวจตามปกติก่อน",
+    },
+    errBlocked: {
+        ja: "申し訳ありませんが、現在WEB予約をお受けできません。お手数ですがクリニックへお電話ください。",
+        en: "Sorry, we cannot accept your online reservation at this time. Please call the clinic.",
+        zh: "抱歉,目前无法受理您的网上预约。请致电诊所。",
+        pt: "Desculpe, no momento não podemos aceitar sua reserva online. Ligue para a clínica.",
+        es: "Lo sentimos, en este momento no podemos aceptar su reserva en línea. Llame a la clínica.",
+        th: "ขออภัย ขณะนี้ไม่สามารถรับการจองออนไลน์ของคุณได้ กรุณาโทรติดต่อคลินิก",
+    },
     errName: { ja: "お名前を入力してください", en: "Please enter your name", zh: "请输入姓名", pt: "Insira seu nome", es: "Ingrese su nombre", th: "กรุณากรอกชื่อ" },
     errNameFormat: {
         ja: "カタカナまたは英字で入力してください",
@@ -608,7 +627,7 @@ const ERR_KEY = {
     taken: "errTaken", slot_closed: "errTaken", too_soon: "errTaken",
     closed: "errTaken", too_far: "errTaken",
     duplicate: "errDup",
-    invalid_name: "errNameFormat", invalid_email: "errEmail", invalid_input: "errSave", invalid_time: "errSave",
+    invalid_name: "errNameFormat", invalid_email: "errEmail", invalid_clinic_id: "errIdFormat", blocked: "errBlocked", invalid_input: "errSave", invalid_time: "errSave",
     deadline: "cancelLocked", not_found: "notFound",
 };
 // ================= メイン =================
@@ -731,8 +750,10 @@ function App() {
         setLoading(false);
     }
     useEffect(() => { loadPublic(); }, []);
-    useEffect(() => { if (mode === "admin" && session)
-        loadAdmin(); }, [mode, session]);
+    useEffect(() => { if (mode === "admin" && session) {
+        loadAdmin();
+        loadBlocklist();
+    } }, [mode, session]);
     function flash(msg) {
         setNotice(msg);
         setTimeout(() => setNotice(""), 3000);
@@ -826,6 +847,8 @@ function App() {
             e.name = t("errNameFormat");
         if (!form.clinicId.trim())
             e.clinicId = t("errId");
+        else if (!isValidClinicId(normClinicId(form.clinicId)))
+            e.clinicId = t("errIdFormat");
         const digits = form.phone.replace(/[^0-9]/g, "");
         if (digits.length < 10 || digits.length > 15)
             e.phone = t("errPhone");
@@ -843,7 +866,7 @@ function App() {
                 p_date: selDate,
                 p_time: selTime,
                 p_name: form.name.trim(),
-                p_clinic_id: form.clinicId.trim(),
+                p_clinic_id: normClinicId(form.clinicId),
                 p_phone: form.phone.trim(),
                 p_lang: lang,
                 p_treatment: treatStore(),
@@ -857,7 +880,7 @@ function App() {
                     p_date: selDate,
                     p_time: selTime,
                     p_name: form.name.trim(),
-                    p_clinic_id: form.clinicId.trim(),
+                    p_clinic_id: normClinicId(form.clinicId),
                     p_phone: form.phone.trim(),
                     p_lang: lang,
                     p_treatment: treatStore(),
@@ -871,7 +894,7 @@ function App() {
                     p_date: selDate,
                     p_time: selTime,
                     p_name: form.name.trim(),
-                    p_clinic_id: form.clinicId.trim(),
+                    p_clinic_id: normClinicId(form.clinicId),
                     p_phone: form.phone.trim(),
                     p_lang: lang,
                     p_treatment: treatStore(),
@@ -909,7 +932,7 @@ function App() {
             const { data, error: err } = await sb.rpc("create_consultation", {
                 p_date: selDate,
                 p_name: form.name.trim(),
-                p_clinic_id: form.clinicId.trim(),
+                p_clinic_id: normClinicId(form.clinicId),
                 p_phone: form.phone.trim(),
                 p_treatment: treatStore(),
                 p_lang: lang,
@@ -1222,7 +1245,7 @@ function App() {
             [t("rowDate"), isConsult ? localDate(selDate, lang) : `${localDate(selDate, lang)} ${selTime}〜`],
             [t("rowContent"), treatDisplay()],
             [t("rowName"), form.name],
-            [t("rowId"), form.clinicId],
+            [t("rowId"), normClinicId(form.clinicId)],
             [t("rowPhone"), form.phone],
             ...(isConsult ? [] : [[t("rowEmail"), form.email.trim()]]),
         ];
@@ -1327,6 +1350,51 @@ function App() {
     const [bulkSel, setBulkSel] = useState([]);
     const [aListMode, setAListMode] = useState("future");
     const [consults, setConsults] = useState([]);
+    const [blocklist, setBlocklist] = useState([]);
+    async function loadBlocklist() {
+        const { data, error: err } = await sb.from("booking_blocklist").select("*").order("created_at", { ascending: false });
+        if (!err)
+            setBlocklist(data || []); // テーブル未作成(マイグレーション前)なら空のまま
+    }
+    // 無断キャンセルを繰り返す人などを WEB予約不可にする(電話・メール・診察券番号のどれかが一致したら弾く)
+    async function blockPerson(rec) {
+        const reason = window.prompt(`${rec.name} 様(📞 ${rec.phone}${rec.email ? ` / ✉ ${rec.email}` : ""})をWEB予約できないようにします。\n理由(任意):`, "無断キャンセル");
+        if (reason === null)
+            return;
+        const cid = normClinicId(rec.clinicId);
+        try {
+            const { error: err } = await sb.from("booking_blocklist").insert({
+                phone: String(rec.phone || "").replace(/[^0-9]/g, "") || null,
+                email: rec.email ? rec.email.trim().toLowerCase() : null,
+                clinic_id: isValidClinicId(cid) && cid === String(rec.clinicId || "").trim() ? cid : null,
+                name: rec.name, reason: reason.trim() || null,
+            });
+            if (err)
+                throw err;
+            await loadBlocklist();
+            flash(`${rec.name} 様をブロックしました(予約自体は残っています。必要なら「取り消す」を)`);
+        }
+        catch (e) {
+            console.error(e);
+            setError("ブロックに失敗しました。");
+        }
+    }
+    async function unblock(rec) {
+        if (!window.confirm(`${rec.name || rec.phone} のブロックを解除しますか?`))
+            return;
+        const { error: err } = await sb.from("booking_blocklist").delete().eq("id", rec.id);
+        if (err) {
+            setError("解除に失敗しました。");
+            return;
+        }
+        setBlocklist((prev) => prev.filter((x) => x.id !== rec.id));
+        flash("ブロックを解除しました");
+    }
+    const isBlocked = (b) => {
+        const ph = String(b.phone || "").replace(/[^0-9]/g, "");
+        const em = (b.email || "").toLowerCase();
+        return blocklist.some((x) => (x.phone && x.phone === ph) || (x.email && x.email === em) || (x.clinic_id && x.clinic_id === String(b.clinicId || "").trim()));
+    };
     async function resolveConsult(rec) {
         if (!window.confirm(`${jp(rec.date)} ${rec.name} 様のご相談を対応済みにして削除しますか?`))
             return;
@@ -1461,7 +1529,7 @@ function App() {
         }
     }
     async function adminCancel(rec) {
-        if (!window.confirm(`${jp(rec.date)} ${rec.time} ${rec.name} 様の予約を取り消しますか?\n(患者様への連絡を忘れずに)`))
+        if (!window.confirm(`${jp(rec.date)} ${rec.time} ${rec.name} 様の予約を取り消しますか?\n${rec.email ? `\n(${rec.email} へ取消のお知らせメールが自動で送られます)` : "\n(メール未登録の方です。お電話での連絡を忘れずに)"}`))
             return;
         try {
             const { error: err } = await sb.from("bookings").delete().eq("id", rec.id);
@@ -1618,6 +1686,19 @@ function App() {
                     React.createElement(Btn, { variant: "outline", onClick: () => applyBulk(false) }, "\u55B6\u696D\u306B\u623B\u3059")))),
             !bulkMode && aSelDate && React.createElement(AdminDayPanel, { dateStr: aSelDate })));
     }
+    function AdminBlocklist() {
+        return (React.createElement("div", null,
+            React.createElement("p", { className: "text-xs mb-3 leading-relaxed", style: { color: C.sub } }, "\u3053\u3053\u306B\u3042\u308B\u65B9\u306F\u3001\u96FB\u8A71\u30FB\u30E1\u30FC\u30EB\u30FB\u8A3A\u5BDF\u5238\u756A\u53F7\u306E\u3069\u308C\u304B\u304C\u4E00\u81F4\u3059\u308B\u3068WEB\u4E88\u7D04\u3067\u304D\u307E\u305B\u3093(\u300C\u30AF\u30EA\u30CB\u30C3\u30AF\u3078\u304A\u96FB\u8A71\u304F\u3060\u3055\u3044\u300D\u3068\u8868\u793A)\u3002\u8FFD\u52A0\u306F\u300C\u4E88\u7D04\u4E00\u89A7\u300D\u306E\u5404\u4E88\u7D04\u304B\u3089\u3002"),
+            blocklist.length === 0 ? (React.createElement("div", { className: "rounded-2xl p-6 text-center", style: { background: C.card, border: `1px solid ${C.line}` } },
+                React.createElement("p", { className: "text-sm", style: { color: C.sub } }, "\u30D6\u30ED\u30C3\u30AF\u4E2D\u306E\u65B9\u306F\u3044\u307E\u305B\u3093"))) : blocklist.map((x) => (React.createElement("div", { key: x.id, className: "rounded-2xl p-4 mb-3 flex items-start justify-between gap-2", style: { background: C.card, border: `1px solid ${C.line}` } },
+                React.createElement("div", null,
+                    React.createElement("p", { className: "text-sm", style: { color: C.ink, fontWeight: 700 } }, x.name || "(\u540D\u524D\u306A\u3057)", " \u69D8"),
+                    React.createElement("p", { className: "text-xs mt-0.5", style: { color: C.sub } },
+                        x.phone && `📞 ${x.phone}`, x.email && ` / ✉ ${x.email}`, x.clinic_id && ` / 診察券 ${x.clinic_id}`),
+                    React.createElement("p", { className: "text-xs mt-0.5", style: { color: C.sub } },
+                        x.reason || "", x.created_at && ` (${receivedAtJa(x.created_at)} 登録)`)),
+                React.createElement(Btn, { small: true, variant: "outline", onClick: () => unblock(x) }, "\u89E3\u9664"))))));
+    }
     function AdminBookings() {
         const all = Object.values(bookings).flat();
         const byDateTime = (a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time);
@@ -1688,6 +1769,7 @@ function App() {
                             b.createdAt && ` / 受付 ${receivedAtJa(b.createdAt)}`)),
                     aListMode === "future" && b.date === tomorrow && (React.createElement("span", { className: "text-xs px-2 py-1 rounded-full shrink-0", style: { background: C.goldSoft, color: C.gold, fontWeight: 700 } }, "\u660E\u65E5")),
                     aListMode === "past" && (React.createElement("span", { className: "text-xs px-2 py-1 rounded-full shrink-0", style: { background: C.bgAdmin, color: C.sub, fontWeight: 600 } }, "\u6E08"))),
+                React.createElement("div", { className: "flex justify-end mb-2" }, isBlocked(b) ? (React.createElement("span", { className: "text-xs px-2 py-1 rounded-full", style: { background: C.dangerSoft, color: C.danger, fontWeight: 700 } }, "\u26D4 \u30D6\u30ED\u30C3\u30AF\u4E2D")) : (React.createElement(Btn, { small: true, variant: "outline", onClick: () => blockPerson(b) }, "\u26D4 \u4EE5\u5F8C\u306EWEB\u4E88\u7D04\u3092\u30D6\u30ED\u30C3\u30AF"))),
                 aListMode === "future" && (React.createElement("div", { className: "flex gap-2" },
                     React.createElement("a", { href: gcalUrl({
                             date: b.date, time: b.time,
@@ -1722,13 +1804,13 @@ function App() {
                     React.createElement("div", { className: "flex gap-2" },
                         React.createElement("button", { onClick: loadAdmin, className: "text-xs px-3 py-2 rounded-lg active:opacity-60", style: { background: "#1A3A50", color: "#C2D6E0", fontWeight: 600, border: "none", cursor: "pointer" } }, "\u21BB \u66F4\u65B0"),
                         React.createElement("button", { onClick: doLogout, className: "text-xs px-3 py-2 rounded-lg active:opacity-60", style: { background: "#1A3A50", color: "#C2D6E0", fontWeight: 600, border: "none", cursor: "pointer" } }, "\u30ED\u30B0\u30A2\u30A6\u30C8"))),
-                React.createElement("div", { className: "max-w-md mx-auto flex gap-1 mt-3" }, [["slots", "枠の管理"], ["bookings", "予約一覧"]].map(([k, label]) => (React.createElement("button", { key: k, onClick: () => setATab(k), className: "flex-1 py-2.5 text-sm rounded-t-xl", style: { fontWeight: 600, background: aTab === k ? C.bgAdmin : "transparent", color: aTab === k ? C.primary : "#7FA6B8", border: "none", cursor: "pointer" } }, label))))),
+                React.createElement("div", { className: "max-w-md mx-auto flex gap-1 mt-3" }, [["slots", "枠の管理"], ["bookings", "予約一覧"], ["block", "ブロック"]].map(([k, label]) => (React.createElement("button", { key: k, onClick: () => setATab(k), className: "flex-1 py-2.5 text-sm rounded-t-xl", style: { fontWeight: 600, background: aTab === k ? C.bgAdmin : "transparent", color: aTab === k ? C.primary : "#7FA6B8", border: "none", cursor: "pointer" } }, label))))),
             React.createElement("main", { className: "max-w-md mx-auto px-4 py-4 pb-12" },
                 notice && (React.createElement("div", { className: "rounded-xl px-4 py-2.5 mb-3 text-sm", style: { background: C.primarySoft, color: C.primary, fontWeight: 600 } },
                     "\u2713 ",
                     notice)),
                 error && (React.createElement("div", { className: "rounded-xl px-4 py-2.5 mb-3 text-sm", style: { background: C.dangerSoft, color: C.danger, fontWeight: 600 } }, error)),
-                loading ? (React.createElement("p", { className: "text-center py-10 text-sm", style: { color: C.sub } }, "\u8AAD\u307F\u8FBC\u3093\u3067\u3044\u307E\u3059\u2026")) : aTab === "slots" ? AdminSlots() : AdminBookings())));
+                loading ? (React.createElement("p", { className: "text-center py-10 text-sm", style: { color: C.sub } }, "\u8AAD\u307F\u8FBC\u3093\u3067\u3044\u307E\u3059\u2026")) : aTab === "slots" ? AdminSlots() : aTab === "block" ? AdminBlocklist() : AdminBookings())));
     }
     if (pScreen === "landing")
         return Landing();
