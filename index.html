@@ -157,11 +157,13 @@ const RISKS = [
     { ja: "効果の持続には個人差があり、再施術が必要になる場合があります", en: "Duration of results varies; repeat treatment may be necessary", zh: "效果维持时间因人而异,可能需要再次施术", pt: "A duração do efeito varia; novo procedimento pode ser necessário", es: "La duración del efecto varía; puede ser necesario repetir el procedimiento", th: "ระยะเวลาของผลลัพธ์แตกต่างกัน อาจต้องทำซ้ำ" },
     { ja: "血管閉塞などの重い合併症がごくまれに起こることがあります。強い痛みや皮膚の色の変化など異常を感じた場合は、すぐにクリニックへご連絡ください", en: "Serious complications such as vascular occlusion are very rare but possible. Contact the clinic immediately if you notice severe pain or skin color changes", zh: "极少数情况下可能发生血管栓塞等严重并发症。如出现剧烈疼痛或皮肤颜色变化,请立即联系诊所", pt: "Complicações graves como oclusão vascular são muito raras, mas possíveis. Contate a clínica imediatamente se notar dor intensa ou mudança na cor da pele", es: "Complicaciones graves como la oclusión vascular son muy raras pero posibles. Contacte a la clínica de inmediato si nota dolor intenso o cambios de color en la piel", th: "ภาวะแทรกซ้อนร้ายแรง เช่น หลอดเลือดอุดตัน พบได้น้อยมาก หากมีอาการปวดรุนแรงหรือสีผิวเปลี่ยน กรุณาติดต่อคลินิกทันที" },
 ];
-// ボトックス/ヒアルロン酸のみの予約は選んだ1枠だけ埋める。他の施術を含む予約は終日ブロック
-const LIGHT_TREATMENT_KEYS = ["botox", "hyaluron"];
+// 短時間施術(ボトックス/ヒアルロン酸/サーモン注射=PDRN シリンジ・Dr.pen)のみの予約は選んだ30分枠だけ埋める。
+// 他の施術を含む予約は終日ブロック。DB側 jp_light_treatment() と同じ並びに保つこと
+const LIGHT_TREATMENT_KEYS = ["botox", "hyaluron", "salmon_syr", "salmon_pen"];
 const LIGHT_TREATMENT_JA = TREATMENTS.filter((x) => LIGHT_TREATMENT_KEYS.includes(x.key)).map((x) => x.ja);
 const isLightTreatmentText = (s) => !!s && String(s).split("、").every((p) => LIGHT_TREATMENT_JA.includes(p.trim()));
 const SLOT_TIMES = ["13:00", "13:30", "14:00"];
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const C = {
     bg: "#F6FAFC",
     bgAdmin: "#EFF5F8",
@@ -332,6 +334,8 @@ const TR = {
     fieldId: { ja: "診察券番号", en: "Patient ID number", zh: "诊察券号码", pt: "Número do cartão de paciente", es: "Número de tarjeta de paciente", th: "หมายเลขบัตรผู้ป่วย" },
     fieldIdPh: { ja: "例: 12345", en: "e.g. 12345", zh: "例: 12345", pt: "ex.: 12345", es: "ej.: 12345", th: "เช่น 12345" },
     fieldPhone: { ja: "携帯電話番号", en: "Mobile phone number", zh: "手机号码", pt: "Número de celular", es: "Número de móvil", th: "หมายเลขโทรศัพท์มือถือ" },
+    fieldEmail: { ja: "メールアドレス(予約確認メールをお送りします)", en: "Email (we will send a confirmation)", zh: "电子邮箱(将发送预约确认邮件)", pt: "E-mail (enviaremos a confirmação)", es: "Correo electrónico (enviaremos la confirmación)", th: "อีเมล (เราจะส่งอีเมลยืนยันการจอง)" },
+    errEmail: { ja: "メールアドレスを正しく入力してください", en: "Please enter a valid email address", zh: "请输入正确的电子邮箱", pt: "Insira um e-mail válido", es: "Ingrese un correo válido", th: "กรุณากรอกอีเมลที่ถูกต้อง" },
     errName: { ja: "お名前を入力してください", en: "Please enter your name", zh: "请输入姓名", pt: "Insira seu nome", es: "Ingrese su nombre", th: "กรุณากรอกชื่อ" },
     errNameFormat: {
         ja: "カタカナまたは英字で入力してください",
@@ -349,6 +353,7 @@ const TR = {
     rowContent: { ja: "内容", en: "Treatment", zh: "项目", pt: "Tratamento", es: "Tratamiento", th: "รายการ" },
     rowName: { ja: "お名前", en: "Name", zh: "姓名", pt: "Nome", es: "Nombre", th: "ชื่อ" },
     rowId: { ja: "診察券番号", en: "Patient ID", zh: "诊察券号码", pt: "Nº do cartão", es: "Nº de tarjeta", th: "หมายเลขบัตร" },
+    rowEmail: { ja: "メール", en: "Email", zh: "邮箱", pt: "E-mail", es: "Correo", th: "อีเมล" },
     rowPhone: { ja: "携帯番号", en: "Mobile", zh: "手机号码", pt: "Celular", es: "Móvil", th: "โทรศัพท์" },
     confirmBtn: { ja: "この内容で予約を確定する", en: "Confirm reservation", zh: "确定预约", pt: "Confirmar reserva", es: "Confirmar reserva", th: "ยืนยันการจอง" },
     submitting: { ja: "予約を確定しています…", en: "Confirming…", zh: "正在确认…", pt: "Confirmando…", es: "Confirmando…", th: "กำลังยืนยัน…" },
@@ -588,12 +593,22 @@ function isJpHoliday(dateStr) {
     const [y, m, d] = dateStr.split("-").map(Number);
     return jpHolidaySet(y).has(m * 100 + d);
 }
+// 予約受付日時 (timestamptz) → "10/30 21:05" (JST)
+function receivedAtJa(ts) {
+    if (!ts)
+        return "";
+    const p = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(ts));
+    const g = (k) => (p.find((x) => x.type === k) || {}).value || "";
+    return `${g("month")}/${g("day")} ${g("hour")}:${g("minute")}`;
+}
+// 管理画面の「カレンダー追加」に入れる詳細
+const bookingDetails = (b) => `予約番号: ${b.bookingNo}\n診察券番号: ${b.clinicId}\n携帯: ${b.phone}${b.email ? `\nメール: ${b.email}` : ""}${b.createdAt ? `\n予約受付: ${receivedAtJa(b.createdAt)}` : ""}\n(${CLINIC_NAME} 予約システムより)`;
 // サーバーのエラーコード → 翻訳キー
 const ERR_KEY = {
     taken: "errTaken", slot_closed: "errTaken", too_soon: "errTaken",
     closed: "errTaken", too_far: "errTaken",
     duplicate: "errDup",
-    invalid_name: "errNameFormat", invalid_input: "errSave", invalid_time: "errSave",
+    invalid_name: "errNameFormat", invalid_email: "errEmail", invalid_input: "errSave", invalid_time: "errSave",
     deadline: "cancelLocked", not_found: "notFound",
 };
 // ================= メイン =================
@@ -696,8 +711,8 @@ function App() {
                     bk[r.date] = [];
                 bk[r.date].push({
                     id: r.id, date: r.date, time: r.time, name: r.name,
-                    clinicId: r.clinic_id, phone: r.phone,
-                    bookingNo: r.booking_no, lang: r.lang,
+                    clinicId: r.clinic_id, phone: r.phone, email: r.email || "",
+                    bookingNo: r.booking_no, lang: r.lang, createdAt: r.created_at,
                     treatment: r.treatment || "糸リフト",
                 });
             });
@@ -750,7 +765,7 @@ function App() {
     const [pMonthIdx, setPMonthIdx] = useState(0);
     const [selDate, setSelDate] = useState(null);
     const [selTime, setSelTime] = useState(null);
-    const [form, setForm] = useState({ name: "", clinicId: "", phone: "" });
+    const [form, setForm] = useState({ name: "", clinicId: "", phone: "", email: "" });
     const [formErr, setFormErr] = useState({});
     const [bookingNo, setBookingNo] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -778,7 +793,7 @@ function App() {
             parts.push(treatText.trim());
         return parts.join("、");
     };
-    // ボトックス/ヒアルロン酸のみなら選んだ1枠だけ埋める(それ以外の施術を含むと終日ブロック)
+    // 短時間施術のみなら選んだ1枠だけ埋める(それ以外の施術を含むと終日ブロック)
     const isLightSel = () => treatSel.length > 0 && treatSel.every((k) => LIGHT_TREATMENT_KEYS.includes(k));
     function dayStatus(dateStr, dow) {
         if (dow === 0 || isJpHoliday(dateStr))
@@ -814,6 +829,9 @@ function App() {
         const digits = form.phone.replace(/[^0-9]/g, "");
         if (digits.length < 10 || digits.length > 15)
             e.phone = t("errPhone");
+        // 予約はメール必須(確認・前日リマインドを送る)。満枠日の相談は電話で折り返すので不要
+        if (!isConsult && !EMAIL_RE.test(form.email.trim()))
+            e.email = t("errEmail");
         setFormErr(e);
         return Object.keys(e).length === 0;
     }
@@ -831,7 +849,22 @@ function App() {
                 p_treatment: treatStore(),
                 p_consented: consentChecked,
                 p_risk_version: RISK_VERSION,
+                p_email: form.email.trim(),
             });
+            if (err && err.code === "PGRST202") {
+                // DB側がメール未対応(マイグレーション未適用)なら p_email 無しで再試行
+                ({ data, error: err } = await sb.rpc("create_booking", {
+                    p_date: selDate,
+                    p_time: selTime,
+                    p_name: form.name.trim(),
+                    p_clinic_id: form.clinicId.trim(),
+                    p_phone: form.phone.trim(),
+                    p_lang: lang,
+                    p_treatment: treatStore(),
+                    p_consented: consentChecked,
+                    p_risk_version: RISK_VERSION,
+                }));
+            }
             if (err && err.code === "PGRST202") {
                 // DB側が同意記録未対応(マイグレーション未適用)でも予約自体は通す
                 ({ data, error: err } = await sb.rpc("create_booking", {
@@ -1164,6 +1197,7 @@ function App() {
             { key: "name", label: t("fieldName"), ph: t("fieldNamePh"), type: "text", mode: "text" },
             { key: "clinicId", label: t("fieldId"), ph: t("fieldIdPh"), type: "text", mode: "text" },
             { key: "phone", label: t("fieldPhone"), ph: "09012345678", type: "tel", mode: "numeric" },
+            ...(isConsult ? [] : [{ key: "email", label: t("fieldEmail"), ph: "example@gmail.com", type: "email", mode: "email" }]),
         ];
         return (React.createElement("div", null,
             React.createElement(StepDots, { step: 3 }),
@@ -1190,6 +1224,7 @@ function App() {
             [t("rowName"), form.name],
             [t("rowId"), form.clinicId],
             [t("rowPhone"), form.phone],
+            ...(isConsult ? [] : [[t("rowEmail"), form.email.trim()]]),
         ];
         return (React.createElement("div", null,
             React.createElement(StepDots, { step: 4 }),
@@ -1205,7 +1240,7 @@ function App() {
     }
     function PatientDone() {
         const resetAll = () => {
-            setForm({ name: "", clinicId: "", phone: "" });
+            setForm({ name: "", clinicId: "", phone: "", email: "" });
             setSelDate(null);
             setSelTime(null);
             setTreatSel([]);
@@ -1464,7 +1499,7 @@ function App() {
     function AdminDayPanel({ dateStr }) {
         const dayBk = bookings[dateStr] || [];
         const closed = closedSlots[dateStr] || [];
-        // 予約が占有する枠: ボトックス/ヒアルロン酸のみは自分の1枠、他の施術を含むと全枠
+        // 予約が占有する枠: 短時間施術のみは自分の1枠、他の施術を含むと全枠
         const occupied = new Set();
         dayBk.forEach((b) => (isLightTreatmentText(b.treatment) ? [b.time] : SLOT_TIMES).forEach((tt) => occupied.add(tt)));
         return (React.createElement("div", { className: "rounded-2xl p-4 mt-4", style: { background: C.card, border: `1.5px solid ${C.primary}` } },
@@ -1483,14 +1518,16 @@ function App() {
                         booked.clinicId,
                         " / 携帯: ",
                         booked.phone,
+                        booked.email && ` / ✉ ${booked.email}`,
                         React.createElement("br", null),
                         "予約番号: ",
-                        booked.bookingNo)),
+                        booked.bookingNo,
+                        booked.createdAt && ` / 受付 ${receivedAtJa(booked.createdAt)}`)),
                 React.createElement("div", { className: "flex gap-2 mb-3" },
                     React.createElement("a", { href: gcalUrl({
                             date: booked.date, time: booked.time,
                             title: `【${booked.treatment}】${booked.name} 様`,
-                            details: `予約番号: ${booked.bookingNo}\n診察券番号: ${booked.clinicId}\n携帯: ${booked.phone}\n(${CLINIC_NAME} 予約システムより)`,
+                            details: bookingDetails(booked),
                         }), target: "_blank", rel: "noopener noreferrer", className: "flex-1", style: { textDecoration: "none" } },
                         React.createElement(Btn, { onClick: () => { } }, "📅 カレンダー追加")),
                     React.createElement("div", { style: { width: "110px" } },
@@ -1645,15 +1682,17 @@ function App() {
                             b.clinicId,
                             " / \uD83D\uDCDE ",
                             b.phone,
+                            b.email && ` / ✉ ${b.email}`,
                             " / No. ",
-                            b.bookingNo)),
+                            b.bookingNo,
+                            b.createdAt && ` / 受付 ${receivedAtJa(b.createdAt)}`)),
                     aListMode === "future" && b.date === tomorrow && (React.createElement("span", { className: "text-xs px-2 py-1 rounded-full shrink-0", style: { background: C.goldSoft, color: C.gold, fontWeight: 700 } }, "\u660E\u65E5")),
                     aListMode === "past" && (React.createElement("span", { className: "text-xs px-2 py-1 rounded-full shrink-0", style: { background: C.bgAdmin, color: C.sub, fontWeight: 600 } }, "\u6E08"))),
                 aListMode === "future" && (React.createElement("div", { className: "flex gap-2" },
                     React.createElement("a", { href: gcalUrl({
                             date: b.date, time: b.time,
                             title: `【${b.treatment}】${b.name} 様`,
-                            details: `予約番号: ${b.bookingNo}\n診察券番号: ${b.clinicId}\n携帯: ${b.phone}\n(${CLINIC_NAME} 予約システムより)`,
+                            details: bookingDetails(b),
                         }), target: "_blank", rel: "noopener noreferrer", className: "flex-1", style: { textDecoration: "none" } },
                         React.createElement(Btn, { onClick: () => { } }, "\uD83D\uDCC5 \u30AB\u30EC\u30F3\u30C0\u30FC\u8FFD\u52A0")),
                     React.createElement("div", { style: { width: "110px" } },
