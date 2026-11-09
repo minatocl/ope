@@ -163,6 +163,18 @@ const LIGHT_TREATMENT_KEYS = ["botox", "hyaluron", "salmon_syr", "salmon_pen"];
 const LIGHT_TREATMENT_JA = TREATMENTS.filter((x) => LIGHT_TREATMENT_KEYS.includes(x.key)).map((x) => x.ja);
 const isLightTreatmentText = (s) => !!s && String(s).split("、").every((p) => LIGHT_TREATMENT_JA.includes(p.trim()));
 const SLOT_TIMES = ["13:00", "13:30", "14:00"];
+// 予約がその患者枠をふさぐか(DB の jp_booking_blocks_slot と同じルール)
+// 患者枠内の予約: 同時刻 or 短時間施術以外は終日 / 枠外(管理画面の 9:00 など): 所要時間(短時間30分・他60分)が重なる枠だけ
+const toMin = (hm) => { const [h, m] = String(hm).split(":").map(Number); return h * 60 + m; };
+function bookingBlocksSlot(bkTime, bkTreatment, slot) {
+    if (bkTime === slot)
+        return true;
+    const light = isLightTreatmentText(bkTreatment);
+    if (SLOT_TIMES.includes(bkTime))
+        return !light;
+    const st = toMin(bkTime), sl = toMin(slot);
+    return sl < st + (light ? 30 : 60) && st < sl + 30;
+}
 // 管理画面からの手入力予約で選べる時刻(9:00〜18:00、15分刻み)。同時刻の重複もOK(DBの一意制約は撤廃済み)
 const ADMIN_TIMES = Array.from({ length: 37 }, (_, i) => `${String(9 + Math.floor(i / 4)).padStart(2, "0")}:${String((i % 4) * 15).padStart(2, "0")}`);
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -1080,13 +1092,15 @@ function App() {
                     { l: "80%", d: "10s", s: "16s", z: 3 },
                     { l: "91%", d: "6s", s: "13.5s", z: 5 },
                 ].map((p, i) => (React.createElement("div", { key: i, className: "absolute rounded-full", style: { width: `${p.z}px`, height: `${p.z}px`, left: p.l, bottom: "-6px", background: "rgba(205,240,250,0.75)", boxShadow: "0 0 6px rgba(205,240,250,0.5)", animation: `bubbleUp ${p.s} ease-in ${p.d} infinite` } })))),
-            React.createElement("div", { className: "relative flex flex-wrap justify-center gap-3 pt-6 px-4", style: { animation: "fadeIn 0.8s ease-out both" } }, LANGS.map((l) => (React.createElement("button", { key: l.code, onClick: () => setLang(l.code), className: "px-4 py-2 rounded-full text-base transition-opacity active:opacity-60", style: {
-                    fontFamily: fontBody, fontWeight: 600,
-                    background: lang === l.code ? "#BFE6F2" : "rgba(0,0,0,0.15)",
+            React.createElement("div", { className: "relative flex flex-wrap justify-center gap-3 pt-6 px-4", style: { animation: "fadeIn 0.8s ease-out both", maxWidth: "440px", margin: "0 auto" } }, LANGS.map((l) => (React.createElement("button", { key: l.code, onClick: () => setLang(l.code), className: "transition-opacity active:opacity-60", style: {
+                    fontFamily: fontBody, fontWeight: 700,
+                    fontSize: "1.25rem", lineHeight: 1.2,
+                    width: "calc(50% - 6px)", padding: "16px 8px", borderRadius: "16px",
+                    background: lang === l.code ? "#BFE6F2" : "rgba(0,0,0,0.18)",
                     color: lang === l.code ? "#0A2433" : SEA.pillText,
-                    border: `1px solid ${lang === l.code ? "#BFE6F2" : SEA.pill}`,
+                    border: `2px solid ${lang === l.code ? "#BFE6F2" : SEA.pill}`,
                     cursor: "pointer",
-                } }, l.label)))),
+                } }, lang === l.code ? `✓ ${l.label}` : l.label)))),
             React.createElement("div", { className: "relative flex-1 flex items-center justify-center px-6 py-10" },
                 React.createElement("div", { className: "w-full max-w-md text-center", style: { animation: "fadeIn 1.1s ease-out 0.15s both" } },
                     React.createElement("p", { className: "text-xs mb-5", style: { color: "#9FD8EA", letterSpacing: "0.45em", fontFamily: fontBody } }, t("webReserve")),
@@ -1664,7 +1678,8 @@ function App() {
         const closed = closedSlots[dateStr] || [];
         // 予約が占有する枠: 短時間施術のみは自分の1枠、他の施術を含むと全枠
         const occupied = new Set();
-        dayBk.forEach((b) => (isLightTreatmentText(b.treatment) ? [b.time] : SLOT_TIMES).forEach((tt) => occupied.add(tt)));
+        dayBk.forEach((b) => SLOT_TIMES.forEach((tt) => { if (bookingBlocksSlot(b.time, b.treatment, tt))
+            occupied.add(tt); }));
         return (React.createElement("div", { className: "rounded-2xl p-4 mt-4", style: { background: C.card, border: `1.5px solid ${C.primary}` } },
             React.createElement("div", { className: "flex items-center justify-between mb-3" },
                 React.createElement("p", { className: "text-base", style: { fontFamily: fontDisplay, color: C.ink, fontWeight: 600 } }, jp(dateStr)),
