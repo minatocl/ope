@@ -412,6 +412,16 @@ const TR = {
     doneTitle: { ja: "ご予約が完了しました", en: "Reservation Complete", zh: "预约已完成", pt: "Reserva Concluída", es: "Reserva Completada", th: "การจองเสร็จสมบูรณ์", vi: "Đặt lịch thành công" },
     bookingNoLabel: { ja: "予約番号", en: "Booking No.", zh: "预约编号", pt: "Nº da reserva", es: "Nº de reserva", th: "หมายเลขการจอง", vi: "Mã đặt lịch" },
     addCal: { ja: "📅 カレンダーに追加して忘れず来院", en: "📅 Add to calendar", zh: "📅 添加到日历", pt: "📅 Adicionar ao calendário", es: "📅 Añadir al calendario", th: "📅 เพิ่มลงปฏิทิน", vi: "📅 Thêm vào lịch" },
+    callNoteTitle: { ja: "前日に確認のお電話をします", en: "We will call you the day before", zh: "前一天我们会致电确认", pt: "Ligaremos no dia anterior", es: "Le llamaremos el día anterior", th: "คลินิกจะโทรยืนยันในวันก่อนนัด", vi: "Chúng tôi sẽ gọi điện xác nhận trước một ngày" },
+    callNote: {
+        ja: "処置の前日に、クリニックからご予約確認のお電話をいたします。お電話に出られなかった場合は、お手数ですがクリニックへ折り返しのお電話をお願いいたします。お電話がつながらずご予約の確認が取れない場合は、ご予約は自動的にキャンセルとなりますのでご注意ください。",
+        en: "The clinic will call you the day before your treatment to confirm your reservation. If you miss our call, please call the clinic back. If we cannot reach you and your reservation cannot be confirmed, it will be cancelled automatically.",
+        zh: "处置前一天,诊所会致电与您确认预约。如未能接听,请回电诊所。如无法联系到您、无法确认预约,预约将被自动取消,敬请注意。",
+        pt: "No dia anterior ao procedimento, a clínica ligará para confirmar sua reserva. Se não puder atender, retorne a ligação para a clínica. Se não conseguirmos falar com você e a reserva não for confirmada, ela será cancelada automaticamente.",
+        es: "El día anterior al procedimiento, la clínica le llamará para confirmar su reserva. Si no puede contestar, devuelva la llamada a la clínica. Si no logramos comunicarnos con usted y no se confirma la reserva, esta se cancelará automáticamente.",
+        th: "ในวันก่อนทำหัตถการ คลินิกจะโทรหาคุณเพื่อยืนยันการจอง หากไม่ได้รับสาย กรุณาโทรกลับมาที่คลินิก หากติดต่อไม่ได้และไม่สามารถยืนยันการจองได้ การจองจะถูกยกเลิกโดยอัตโนมัติ",
+        vi: "Một ngày trước khi làm thủ thuật, phòng khám sẽ gọi điện để xác nhận lịch hẹn. Nếu bạn không nghe máy được, vui lòng gọi lại cho phòng khám. Nếu chúng tôi không liên lạc được và không thể xác nhận lịch hẹn, lịch hẹn sẽ tự động bị hủy.",
+    },
     cancelNote: {
         ja: "キャンセルはご予約前日の12:00まで「予約の確認・キャンセル」から承ります。それ以降はお電話にてご連絡ください。ご連絡のない無断キャンセルは、キャンセル料を申し受ける場合があります。",
         en: "Cancellations are accepted via “Check / Cancel Reservation” until 12:00 noon the day before. After that, please call the clinic. No-shows without notice may be subject to a cancellation fee.",
@@ -1359,7 +1369,10 @@ function App() {
                     }), target: "_blank", rel: "noopener noreferrer", className: "block", style: { textDecoration: "none" } },
                     React.createElement(Btn, { onClick: () => { } }, t("addCal"))),
                 React.createElement(Btn, { variant: "outline", onClick: resetAll }, t("backToTop"))),
-            React.createElement("div", { className: "rounded-xl px-4 py-3 mt-5 text-left", style: { background: C.goldSoft, border: `1px solid ${C.gold}` } },
+            React.createElement("div", { className: "rounded-xl px-4 py-3 mt-5 text-left", style: { background: C.card, border: `1.5px solid ${C.primary}` } },
+                React.createElement("p", { className: "text-base mb-1", style: { color: C.primary, fontWeight: 700 } }, "\uD83D\uDCDE ", t("callNoteTitle")),
+                React.createElement("p", { className: "text-sm leading-relaxed", style: { color: C.ink, fontWeight: 600 } }, t("callNote"))),
+            React.createElement("div", { className: "rounded-xl px-4 py-3 mt-3 text-left", style: { background: C.goldSoft, border: `1px solid ${C.gold}` } },
                 React.createElement("p", { className: "text-sm leading-relaxed", style: { color: C.gold, fontWeight: 600 } }, t("cancelNote")))));
     }
     function PatientLookup() {
