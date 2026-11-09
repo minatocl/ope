@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>今日電話する人 — みなとクリニック 処置予約</title>
+<!--
+  受付PC用パネル。予約日の「前の診療日」が今日の処置予約を一覧し、確認の電話ができたら「○ 話せた」を押す。
+  メールの「来院します」で確認ずみの人は最初から ○ が付く。○ は Google カレンダーの題名にも1分以内に反映される。
+  データ取得は Supabase の get_call_list / mark_called(パスコード必須)。パスコードは最初に1回入れると保存される。
+  受付ツール(呼び出し/メモ/ゴミ出し)に iframe で貼り込める: <iframe src="https://minatocl.github.io/ope/call-today.html" ...>
+-->
+<style>
+  :root { --bg:#F6FAFC; --card:#fff; --ink:#1D2B33; --sub:#64808D; --line:#D7E4EA; --primary:#2F7E9E; --primarySoft:#E3F2F7;
+          --ok:#1E7A3E; --okSoft:#DDF3E4; --warn:#B8860B; --warnSoft:#FBF3DC; --danger:#C0392B; --dangerSoft:#FBE7E4; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif; }
+  header { display:flex; align-items:baseline; gap:14px; padding:14px 18px 8px; flex-wrap:wrap; }
+  header h1 { font-size:20px; margin:0; }
+  header .sub { color:var(--sub); font-size:14px; }
+  header .right { margin-left:auto; color:var(--sub); font-size:12px; }
+  main { padding: 0 18px 24px; max-width: 980px; }
+  .card { background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:12px; display:grid; grid-template-columns: 1fr auto; gap:10px 16px; align-items:center; }
+  .card.done { border-color:#9FD7B3; background:#F3FBF5; }
+  .card.late { border-color:#E8A79E; }
+  .when { font-size:15px; color:var(--sub); }
+  .when b { color:var(--ink); font-size:18px; }
+  .name { font-size:24px; font-weight:700; margin:2px 0; }
+  .meta { font-size:14px; color:var(--sub); display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; }
+  .meta a { color:var(--primary); font-weight:700; text-decoration:none; font-size:18px; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; }
+  .tag.lang { background:var(--primarySoft); color:var(--primary); }
+  .tag.sed { background:var(--warnSoft); color:var(--warn); }
+  .tag.late { background:var(--dangerSoft); color:var(--danger); }
+  .status { font-size:15px; font-weight:700; }
+  .status.ok { color:var(--ok); }
+  .status.try { color:var(--warn); }
+  .btns { display:flex; flex-direction:column; gap:8px; min-width:190px; }
+  button { font: inherit; cursor:pointer; border-radius:12px; border:2px solid var(--line); background:var(--card); color:var(--ink); padding:12px 14px; font-size:17px; font-weight:700; }
+  button.ok { background:var(--ok); border-color:var(--ok); color:#fff; font-size:20px; padding:16px 14px; }
+  button.ghost { font-size:13px; padding:6px 10px; border-color:transparent; color:var(--sub); }
+  button:disabled { opacity:.5; cursor:default; }
+  .empty { color:var(--sub); text-align:center; padding:40px 0; font-size:16px; }
+  .gate { max-width:360px; margin:60px auto; background:var(--card); border:1.5px solid var(--line); border-radius:16px; padding:24px; text-align:center; }
+  .gate input { width:100%; font-size:22px; padding:12px; text-align:center; letter-spacing:.2em; border:1.5px solid var(--line); border-radius:10px; margin:12px 0; text-transform:uppercase; }
+  .err { color:var(--danger); font-weight:700; }
+  .check { display:inline-block; width:34px; height:34px; border-radius:50%; background:var(--okSoft); color:var(--ok); font-size:22px; font-weight:700; text-align:center; line-height:34px; margin-right:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📞 今日電話する人</h1>
+  <span class="sub" id="today"></span>
+  <span class="right" id="updated"></span>
+</header>
+<main id="main"></main>
+<script>
+const SUPABASE_URL = "https://xwfeafjoltrytvotvahw.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3ZmVhZmpvbHRyeXR2b3R2YWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNDQwMzIsImV4cCI6MjA5ODYyMDAzMn0.YIr7X8RtI3tyLV5e4vwJzoOaAE5u9lKUG7XsfB3cSFE";
+const LANG_LABEL = { ja: "日本語", en: "English", zh: "中文", pt: "Português", es: "Español", th: "ไทย", vi: "Tiếng Việt" };
+const REFRESH_MS = 60 * 1000;
+const main = document.getElementById("main");
+let code = localStorage.getItem("chisho_call_code") || "";
+let timer = null;
+
+async function rpc(fn, body) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const WD = ["日", "月", "火", "水", "木", "金", "土"];
+function jp(d) { const [y, m, dd] = d.split("-").map(Number); return `${m}/${dd}(${WD[new Date(y, m - 1, dd).getDay()]})`; }
+function hm(ts) { return new Date(ts).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" }); }
+function md(ts) { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()} ${hm(ts)}`; }
+function todayStr() { return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }); }
+
+function gate(msg) {
+  main.innerHTML = `<div class="gate">
+    <p style="font-weight:700;font-size:16px;margin:0">パスコードを入れてください</p>
+    <p style="color:var(--sub);font-size:13px">(最初の1回だけ。このパソコンに保存されます)</p>
+    <input id="code" autocomplete="off" autofocus>
+    ${msg ? `<p class="err">${esc(msg)}</p>` : ""}
+    <button class="ok" style="width:100%" id="go">開く</button></div>`;
+  const inp = document.getElementById("code");
+  const go = async () => {
+    const v = inp.value.trim().toUpperCase();
+    if (!v) return;
+    try {
+      const ok = await rpc("check_call_code", { p_code: v });
+      if (ok !== true) return gate("パスコードがちがいます");
+      code = v; localStorage.setItem("chisho_call_code", v); load();
+    } catch (e) { gate("つながりませんでした。もう一度ためしてください"); }
+  };
+  document.getElementById("go").onclick = go;
+  inp.onkeydown = (e) => { if (e.key === "Enter") go(); };
+}
+
+async function load() {
+  if (!code) return gate();
+  let rows;
+  try { rows = await rpc("get_call_list", { p_code: code }); }
+  catch (e) { main.innerHTML = `<p class="empty err">読み込めませんでした(${esc(e.message)})。しばらくして自動で再試行します</p>`; schedule(); return; }
+  const today = todayStr();
+  document.getElementById("today").textContent = `今日 ${jp(today)}`;
+  document.getElementById("updated").innerHTML = `${new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })} 更新 ・ 1分ごとに自動更新 ・ <a href="#" id="relogin" style="color:inherit">パスコード変更</a>`;
+  document.getElementById("relogin").onclick = (e) => { e.preventDefault(); localStorage.removeItem("chisho_call_code"); code = ""; gate(); };
+  if (rows.length === 0) {
+    main.innerHTML = `<p class="empty">今日電話する予約はありません</p>`;
+    schedule(); return;
+  }
+  const confirmed = rows.filter((r) => r.attend_confirmed_at || r.called_at).length;
+  main.innerHTML = `<p style="color:var(--sub);font-size:14px;margin:4px 0 12px">${rows.length} 件中 ${confirmed} 件が確認ずみ。電話で話せたら「○ 話せた」を押してください(カレンダーの題名に ○ が付きます)。</p>` +
+    rows.map((r) => {
+      const ok = r.attend_confirmed_at || r.called_at;
+      const late = !ok && r.call_day < today;
+      const status = r.called_at ? `<span class="status ok"><span class="check">○</span>電話で確認ずみ ${md(r.called_at)}</span>`
+        : r.attend_confirmed_at ? `<span class="status ok"><span class="check">○</span>メールで「来院します」ずみ ${md(r.attend_confirmed_at)}</span>`
+        : r.call_tries > 0 ? `<span class="status try">出なかった ${r.call_tries}回(最後 ${md(r.last_try_at)})</span>` : "";
+      return `<div class="card ${ok ? "done" : late ? "late" : ""}">
+        <div>
+          <div class="when">予約 <b>${jp(r.bk_date)} ${esc(r.bk_time)}〜</b> ${late ? `<span class="tag late">電話の日(${jp(r.call_day)})を過ぎています</span>` : ""}</div>
+          <div class="name">${esc(r.name)} 様</div>
+          <div class="meta">
+            <a href="tel:${esc(String(r.phone).replace(/[^0-9+]/g, ""))}">📞 ${esc(r.phone)}</a>
+            <span>${esc(r.treatment)}</span>
+            ${r.lang && r.lang !== "ja" ? `<span class="tag lang">${esc(LANG_LABEL[r.lang] || r.lang)}</span>` : ""}
+            ${r.sedation === true ? `<span class="tag sed">💤 眠って処置を希望</span>` : ""}
+            ${r.email ? "" : `<span class="tag" style="background:#EEE;color:#666">メールなし</span>`}
+          </div>
+          <div style="margin-top:6px">${status}</div>
+        </div>
+        <div class="btns">
+          ${ok ? (r.called_at ? `<button class="ghost" data-no="${esc(r.booking_no)}" data-r="undo">○ を取り消す</button>` : `<button data-no="${esc(r.booking_no)}" data-r="ok">電話でも確認した</button>`)
+               : `<button class="ok" data-no="${esc(r.booking_no)}" data-r="ok">○ 話せた</button><button data-no="${esc(r.booking_no)}" data-r="noanswer">出なかった</button>`}
+        </div></div>`;
+    }).join("");
+  main.querySelectorAll("button[data-no]").forEach((b) => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      const res = await rpc("mark_called", { p_code: code, p_booking_no: b.dataset.no, p_result: b.dataset.r });
+      if (!res.ok) throw new Error(res.error);
+    } catch (e) { alert(`記録できませんでした: ${e.message}`); }
+    load();
+  });
+  schedule();
+}
+function schedule() { clearTimeout(timer); timer = setTimeout(load, REFRESH_MS); }
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+load();
+</script>
+</body>
+</html>

@@ -874,7 +874,7 @@ function App() {
                 bk[r.date].push({
                     id: r.id, date: r.date, time: r.time, name: r.name,
                     clinicId: r.clinic_id, phone: r.phone, email: r.email || "",
-                    sedation: r.sedation, attendConfirmedAt: r.attend_confirmed_at,
+                    sedation: r.sedation, attendConfirmedAt: r.attend_confirmed_at, calledAt: r.called_at, callTries: r.call_tries || 0,
                     bookingNo: r.booking_no, lang: r.lang, createdAt: r.created_at,
                     treatment: r.treatment || "糸リフト",
                 });
@@ -1698,6 +1698,16 @@ function App() {
         const em = (b.email || "").toLowerCase();
         return blocklist.some((x) => (x.phone && x.phone === ph) || (x.email && x.email === em) || (x.clinic_id && x.clinic_id === String(b.clinicId || "").trim()));
     };
+    // 確認電話の結果を記録(受付PCの call-today.html と同じ意味。○ はカレンダーの題名にも反映される)
+    async function markCalled(b, result) {
+        const patch = result === "ok" ? { called_at: new Date().toISOString() } : { call_tries: (b.callTries || 0) + 1, last_try_at: new Date().toISOString() };
+        const { error: err } = await sb.from("bookings").update(patch).eq("id", b.id);
+        if (err) {
+            setError("記録に失敗しました。");
+            return;
+        }
+        await loadAdmin();
+    }
     async function resolveConsult(rec) {
         if (!window.confirm(`${jp(rec.date)} ${rec.name} 様のご相談を対応済みにして削除しますか?`))
             return;
@@ -2077,10 +2087,10 @@ function App() {
         const tomorrowList = futureList.filter((b) => prevOpenDay(b.date) === today);
         return (React.createElement("div", null,
             React.createElement("div", { className: "rounded-2xl p-4 mb-4", style: { background: C.dark } },
-                React.createElement("p", { className: "text-xs tracking-widest mb-2", style: { color: C.aqua, letterSpacing: "0.2em" } }, "今日、確認の電話をする予約(○ = メールで来院確認ずみ)"),
+                React.createElement("p", { className: "text-xs tracking-widest mb-2", style: { color: C.aqua, letterSpacing: "0.2em" } }, "今日、確認の電話をする予約(○ = 確認ずみ)"),
                 tomorrowList.length === 0 ? (React.createElement("p", { className: "text-sm", style: { color: "#7FA6B8" } }, "今日電話する予約はありません")) : (tomorrowList.map((b) => (React.createElement("div", { key: b.id || `${b.date}-${b.time}` },
-                    React.createElement("p", { className: "text-base", style: { color: b.attendConfirmedAt ? "#8FE3B0" : "#F2F8FA", fontWeight: 700 } },
-                        b.attendConfirmedAt ? "○ " : "",
+                    React.createElement("p", { className: "text-base", style: { color: b.attendConfirmedAt || b.calledAt ? "#8FE3B0" : "#F2F8FA", fontWeight: 700 } },
+                        b.attendConfirmedAt || b.calledAt ? "○ " : "",
                         jp(b.date),
                         " ",
                         b.time,
@@ -2092,7 +2102,11 @@ function App() {
                         b.phone,
                         " / \u8A3A\u5BDF\u5238 ",
                         b.clinicId,
-                        b.sedation === true && " / 💤眠り希望")))))),
+                        b.sedation === true && " / 💤眠り希望",
+                        b.calledAt ? ` / 電話で確認 ${receivedAtJa(b.calledAt)}` : b.attendConfirmedAt ? ` / メールで来院確認 ${receivedAtJa(b.attendConfirmedAt)}` : b.callTries > 0 ? ` / 出なかった ${b.callTries}回` : ""),
+                    !(b.attendConfirmedAt || b.calledAt) && React.createElement("div", { className: "flex gap-2 mb-3" },
+                        React.createElement("button", { onClick: () => markCalled(b, "ok"), className: "flex-1 py-2 rounded-lg text-sm", style: { background: "#2E9E5B", color: "#fff", fontWeight: 700, border: "none", cursor: "pointer" } }, "\u25CB \u8A71\u305B\u305F"),
+                        React.createElement("button", { onClick: () => markCalled(b, "noanswer"), className: "flex-1 py-2 rounded-lg text-sm", style: { background: "#1A3A50", color: "#C2D6E0", fontWeight: 700, border: "none", cursor: "pointer" } }, "\u51FA\u306A\u304B\u3063\u305F")))))),
             consults.length > 0 && (React.createElement("div", { className: "rounded-2xl p-4 mb-4", style: { background: C.card, border: `1.5px solid ${C.gold}` } },
                 React.createElement("p", { className: "text-sm mb-3", style: { color: C.gold, fontWeight: 700 } },
                     "\uD83D\uDCDE \u8981\u76F8\u8AC7(",
