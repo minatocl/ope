@@ -120,7 +120,7 @@
 
 <script>
 "use strict";
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 // ================= Supabase接続 =================
 const SUPABASE_URL = "https://xwfeafjoltrytvotvahw.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3ZmVhZmpvbHRyeXR2b3R2YWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNDQwMzIsImV4cCI6MjA5ODYyMDAzMn0.YIr7X8RtI3tyLV5e4vwJzoOaAE5u9lKUG7XsfB3cSFE";
@@ -144,18 +144,18 @@ const TREATMENTS = [
 const treatAsset = (key, ext) => `assets/treatments/${key}.${ext}`;
 // 施術共通の一般的リスク(同意ページ表示用)。文言を変えたら RISK_VERSION を上げ、
 // sync/consent-template.mjs の日本語リストも同じ内容に合わせること
-const RISK_VERSION = "2026-10-09.1";
+const RISK_VERSION = "2026-11-09.1";
 const RISKS = [
-    { ja: "痛み・腫れ・内出血が出ることがあります(数日〜数週間で軽快します)", en: "Pain, swelling, or bruising may occur (usually subsides within days to weeks)", zh: "可能出现疼痛、肿胀、瘀青(通常数天至数周内消退)", pt: "Dor, inchaço ou hematomas podem ocorrer (geralmente desaparecem em dias a semanas)", es: "Puede haber dolor, hinchazón o hematomas (suelen desaparecer en días o semanas)", th: "อาจมีอาการปวด บวม หรือรอยช้ำ (มักหายภายในไม่กี่วันถึงไม่กี่สัปดาห์)", vi: "Có thể bị đau, sưng hoặc bầm tím (thường hết sau vài ngày đến vài tuần)" },
-    { ja: "出血や血腫(血のかたまり)が生じることがあります", en: "Bleeding or hematoma (blood collection) may occur", zh: "可能发生出血或血肿", pt: "Sangramento ou hematoma podem ocorrer", es: "Puede producirse sangrado o hematoma", th: "อาจมีเลือดออกหรือก้อนเลือดคั่ง", vi: "Có thể bị chảy máu hoặc tụ máu" },
-    { ja: "感染を起こすことがあり、抗生剤の内服や追加処置が必要になる場合があります", en: "Infection may occur and may require antibiotics or additional treatment", zh: "可能发生感染,需服用抗生素或追加处置", pt: "Infecção pode ocorrer, exigindo antibióticos ou tratamento adicional", es: "Puede producirse una infección que requiera antibióticos o tratamiento adicional", th: "อาจติดเชื้อ ซึ่งอาจต้องใช้ยาปฏิชีวนะหรือการรักษาเพิ่มเติม", vi: "Có thể bị nhiễm trùng và cần dùng kháng sinh hoặc điều trị bổ sung" },
-    { ja: "麻酔薬・使用薬剤によるアレルギーや気分不良が起こることがあります", en: "Allergic reactions or discomfort due to anesthetics or medications may occur", zh: "麻醉药或药物可能引起过敏或不适", pt: "Reações alérgicas ou mal-estar por anestésicos ou medicamentos podem ocorrer", es: "Pueden producirse reacciones alérgicas o malestar por anestésicos o medicamentos", th: "อาจแพ้ยาชาหรือยาที่ใช้ หรือรู้สึกไม่สบาย", vi: "Có thể bị dị ứng hoặc khó chịu do thuốc tê hoặc thuốc sử dụng" },
-    { ja: "傷あとや色素沈着が残ることがあります", en: "Scarring or pigmentation may remain", zh: "可能留下疤痕或色素沉着", pt: "Cicatrizes ou pigmentação podem permanecer", es: "Pueden quedar cicatrices o pigmentación", th: "อาจมีแผลเป็นหรือรอยดำ", vi: "Có thể để lại sẹo hoặc thâm" },
-    { ja: "仕上がりには個人差があり、左右差やイメージとの違いが生じることがあります", en: "Results vary by individual; asymmetry or results different from your expectations may occur", zh: "效果因人而异,可能出现左右不对称或与预期不符", pt: "Os resultados variam; assimetria ou diferença do esperado pode ocorrer", es: "Los resultados varían; puede haber asimetría o diferencias con lo esperado", th: "ผลลัพธ์แตกต่างกันในแต่ละบุคคล อาจไม่สมมาตรหรือต่างจากที่คาดไว้", vi: "Kết quả khác nhau tùy từng người; có thể bị mất cân đối hoặc khác với mong đợi" },
-    { ja: "糸や注入物による凹凸・違和感、まれに糸の露出が生じることがあります", en: "Irregularities or discomfort from threads or fillers, and rarely thread exposure, may occur", zh: "线材或注射物可能造成凹凸不平、异物感,极少数情况下线材外露", pt: "Irregularidades ou desconforto por fios/preenchedores e, raramente, exposição do fio podem ocorrer", es: "Pueden producirse irregularidades o molestias por hilos/rellenos y, raramente, exposición del hilo", th: "อาจมีผิวไม่เรียบหรือรู้สึกระคายจากไหม/สารเติมเต็ม และพบไหมโผล่ได้น้อยมาก", vi: "Có thể bị lồi lõm hoặc cảm giác vướng do chỉ hoặc chất làm đầy, hiếm khi bị lộ chỉ" },
-    { ja: "神経の損傷により、しびれや感覚の低下が生じることがあります(多くは一時的です)", en: "Nerve injury may cause numbness or reduced sensation (usually temporary)", zh: "神经损伤可能导致麻木或感觉减退(多为暂时性)", pt: "Lesão nervosa pode causar dormência ou redução da sensibilidade (geralmente temporária)", es: "Una lesión nerviosa puede causar entumecimiento o pérdida de sensibilidad (generalmente temporal)", th: "การบาดเจ็บของเส้นประสาทอาจทำให้ชาหรือความรู้สึกลดลง (ส่วนใหญ่เป็นชั่วคราว)", vi: "Tổn thương thần kinh có thể gây tê hoặc giảm cảm giác (thường là tạm thời)" },
-    { ja: "効果の持続には個人差があり、再施術が必要になる場合があります", en: "Duration of results varies; repeat treatment may be necessary", zh: "效果维持时间因人而异,可能需要再次施术", pt: "A duração do efeito varia; novo procedimento pode ser necessário", es: "La duración del efecto varía; puede ser necesario repetir el procedimiento", th: "ระยะเวลาของผลลัพธ์แตกต่างกัน อาจต้องทำซ้ำ", vi: "Thời gian duy trì hiệu quả khác nhau; có thể cần thực hiện lại" },
-    { ja: "血管閉塞などの重い合併症がごくまれに起こることがあります。強い痛みや皮膚の色の変化など異常を感じた場合は、すぐにクリニックへご連絡ください", en: "Serious complications such as vascular occlusion are very rare but possible. Contact the clinic immediately if you notice severe pain or skin color changes", zh: "极少数情况下可能发生血管栓塞等严重并发症。如出现剧烈疼痛或皮肤颜色变化,请立即联系诊所", pt: "Complicações graves como oclusão vascular são muito raras, mas possíveis. Contate a clínica imediatamente se notar dor intensa ou mudança na cor da pele", es: "Complicaciones graves como la oclusión vascular son muy raras pero posibles. Contacte a la clínica de inmediato si nota dolor intenso o cambios de color en la piel", th: "ภาวะแทรกซ้อนร้ายแรง เช่น หลอดเลือดอุดตัน พบได้น้อยมาก หากมีอาการปวดรุนแรงหรือสีผิวเปลี่ยน กรุณาติดต่อคลินิกทันที", vi: "Biến chứng nghiêm trọng như tắc mạch máu rất hiếm nhưng có thể xảy ra. Nếu thấy đau dữ dội hoặc da đổi màu, hãy liên hệ phòng khám ngay" },
+    { icon: "🩹", ja: "痛み・はれ・内出血(青あざ)が出ることがあります。数日〜数週間でよくなります", en: "Pain, swelling, or bruising may occur (usually subsides within days to weeks)", zh: "可能出现疼痛、肿胀、瘀青(通常数天至数周内消退)", pt: "Dor, inchaço ou hematomas podem ocorrer (geralmente desaparecem em dias a semanas)", es: "Puede haber dolor, hinchazón o hematomas (suelen desaparecer en días o semanas)", th: "อาจมีอาการปวด บวม หรือรอยช้ำ (มักหายภายในไม่กี่วันถึงไม่กี่สัปดาห์)", vi: "Có thể bị đau, sưng hoặc bầm tím (thường hết sau vài ngày đến vài tuần)" },
+    { icon: "🩸", ja: "血が出たり、血のかたまりができることがあります", en: "Bleeding or hematoma (blood collection) may occur", zh: "可能发生出血或血肿", pt: "Sangramento ou hematoma podem ocorrer", es: "Puede producirse sangrado o hematoma", th: "อาจมีเลือดออกหรือก้อนเลือดคั่ง", vi: "Có thể bị chảy máu hoặc tụ máu" },
+    { icon: "🦠", ja: "ばい菌が入って感染することがあります。薬を飲んだり、追加の処置が必要になることがあります", en: "Infection may occur and may require antibiotics or additional treatment", zh: "可能发生感染,需服用抗生素或追加处置", pt: "Infecção pode ocorrer, exigindo antibióticos ou tratamento adicional", es: "Puede producirse una infección que requiera antibióticos o tratamiento adicional", th: "อาจติดเชื้อ ซึ่งอาจต้องใช้ยาปฏิชีวนะหรือการรักษาเพิ่มเติม", vi: "Có thể bị nhiễm trùng và cần dùng kháng sinh hoặc điều trị bổ sung" },
+    { icon: "💊", ja: "麻酔や薬で、アレルギーが出たり、気分が悪くなることがあります", en: "Allergic reactions or discomfort due to anesthetics or medications may occur", zh: "麻醉药或药物可能引起过敏或不适", pt: "Reações alérgicas ou mal-estar por anestésicos ou medicamentos podem ocorrer", es: "Pueden producirse reacciones alérgicas o malestar por anestésicos o medicamentos", th: "อาจแพ้ยาชาหรือยาที่ใช้ หรือรู้สึกไม่สบาย", vi: "Có thể bị dị ứng hoặc khó chịu do thuốc tê hoặc thuốc sử dụng" },
+    { icon: "〰️", ja: "傷あとや、しみ(色素沈着)が残ることがあります", en: "Scarring or pigmentation may remain", zh: "可能留下疤痕或色素沉着", pt: "Cicatrizes ou pigmentação podem permanecer", es: "Pueden quedar cicatrices o pigmentación", th: "อาจมีแผลเป็นหรือรอยดำ", vi: "Có thể để lại sẹo hoặc thâm" },
+    { icon: "🪞", ja: "仕上がりは人によってちがいます。左右の差が出たり、イメージとちがうことがあります", en: "Results vary by individual; asymmetry or results different from your expectations may occur", zh: "效果因人而异,可能出现左右不对称或与预期不符", pt: "Os resultados variam; assimetria ou diferença do esperado pode ocorrer", es: "Los resultados varían; puede haber asimetría o diferencias con lo esperado", th: "ผลลัพธ์แตกต่างกันในแต่ละบุคคล อาจไม่สมมาตรหรือต่างจากที่คาดไว้", vi: "Kết quả khác nhau tùy từng người; có thể bị mất cân đối hoặc khác với mong đợi" },
+    { icon: "🧵", ja: "糸や注入したもので、でこぼこや違和感が出ることがあります。まれに糸が出てくることがあります", en: "Irregularities or discomfort from threads or fillers, and rarely thread exposure, may occur", zh: "线材或注射物可能造成凹凸不平、异物感,极少数情况下线材外露", pt: "Irregularidades ou desconforto por fios/preenchedores e, raramente, exposição do fio podem ocorrer", es: "Pueden producirse irregularidades o molestias por hilos/rellenos y, raramente, exposición del hilo", th: "อาจมีผิวไม่เรียบหรือรู้สึกระคายจากไหม/สารเติมเต็ม และพบไหมโผล่ได้น้อยมาก", vi: "Có thể bị lồi lõm hoặc cảm giác vướng do chỉ hoặc chất làm đầy, hiếm khi bị lộ chỉ" },
+    { icon: "⚡", ja: "神経が傷ついて、しびれたり、感覚がにぶくなることがあります(多くは一時的です)", en: "Nerve injury may cause numbness or reduced sensation (usually temporary)", zh: "神经损伤可能导致麻木或感觉减退(多为暂时性)", pt: "Lesão nervosa pode causar dormência ou redução da sensibilidade (geralmente temporária)", es: "Una lesión nerviosa puede causar entumecimiento o pérdida de sensibilidad (generalmente temporal)", th: "การบาดเจ็บของเส้นประสาทอาจทำให้ชาหรือความรู้สึกลดลง (ส่วนใหญ่เป็นชั่วคราว)", vi: "Tổn thương thần kinh có thể gây tê hoặc giảm cảm giác (thường là tạm thời)" },
+    { icon: "⏳", ja: "効果が続く長さは人によってちがいます。もう一度処置が必要になることがあります", en: "Duration of results varies; repeat treatment may be necessary", zh: "效果维持时间因人而异,可能需要再次施术", pt: "A duração do efeito varia; novo procedimento pode ser necessário", es: "La duración del efecto varía; puede ser necesario repetir el procedimiento", th: "ระยะเวลาของผลลัพธ์แตกต่างกัน อาจต้องทำซ้ำ", vi: "Thời gian duy trì hiệu quả khác nhau; có thể cần thực hiện lại" },
+    { icon: "🚨", ja: "ごくまれに、血管がつまるなどの重い合併症が起こることがあります。強い痛みがある、皮ふの色が変わるなど、おかしいと感じたら、すぐにクリニックに連絡してください", en: "Serious complications such as vascular occlusion are very rare but possible. Contact the clinic immediately if you notice severe pain or skin color changes", zh: "极少数情况下可能发生血管栓塞等严重并发症。如出现剧烈疼痛或皮肤颜色变化,请立即联系诊所", pt: "Complicações graves como oclusão vascular são muito raras, mas possíveis. Contate a clínica imediatamente se notar dor intensa ou mudança na cor da pele", es: "Complicaciones graves como la oclusión vascular son muy raras pero posibles. Contacte a la clínica de inmediato si nota dolor intenso o cambios de color en la piel", th: "ภาวะแทรกซ้อนร้ายแรง เช่น หลอดเลือดอุดตัน พบได้น้อยมาก หากมีอาการปวดรุนแรงหรือสีผิวเปลี่ยน กรุณาติดต่อคลินิกทันที", vi: "Biến chứng nghiêm trọng như tắc mạch máu rất hiếm nhưng có thể xảy ra. Nếu thấy đau dữ dội hoặc da đổi màu, hãy liên hệ phòng khám ngay" },
 ];
 // 短時間施術(ボトックス/ヒアルロン酸/サーモン注射=PDRN シリンジ・Dr.pen)のみの予約は選んだ30分枠だけ埋める。
 // 他の施術を含む予約は終日ブロック。DB側 jp_light_treatment() と同じ並びに保つこと
@@ -163,6 +163,33 @@ const LIGHT_TREATMENT_KEYS = ["botox", "hyaluron", "salmon_syr", "salmon_pen"];
 const LIGHT_TREATMENT_JA = TREATMENTS.filter((x) => LIGHT_TREATMENT_KEYS.includes(x.key)).map((x) => x.ja);
 const isLightTreatmentText = (s) => !!s && String(s).split("、").every((p) => LIGHT_TREATMENT_JA.includes(p.trim()));
 const SLOT_TIMES = ["13:00", "13:30", "14:00"];
+const CLINIC_TEL = "045-623-6633";
+const CLINIC_TEL_HREF = "tel:0456236633";
+// 日曜・祝日以外の休診期間(年末年始・お盆など)。[開始, 終了] を "MM-DD" で。年をまたぐ指定も可。
+// sync/.env の CLINIC_CLOSED_RANGES と同じ内容に保つこと(確認電話の日=前の診療日の計算に使う)
+const CLINIC_CLOSED_RANGES = [];
+function isClinicClosedDay(dateStr) {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    if (new Date(y, m - 1, d).getDay() === 0 || isJpHoliday(dateStr))
+        return true;
+    const md = dateStr.slice(5);
+    return CLINIC_CLOSED_RANGES.some(([a, b]) => (a <= b ? md >= a && md <= b : md >= a || md <= b));
+}
+// 予約日の「前の診療日」= クリニックが確認の電話をする日
+function prevOpenDay(dateStr) {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const cur = new Date(y, m - 1, d);
+    for (let i = 0; i < 30; i++) {
+        cur.setDate(cur.getDate() - 1);
+        const ds = fmtDate(cur);
+        if (!isClinicClosedDay(ds))
+            return ds;
+    }
+    return dateStr;
+}
+// メールの「来院します」リンク(?confirm=トークン&l=言語)
+const ATT_PARAMS = new URLSearchParams(window.location.search);
+const ATT_TOKEN = ATT_PARAMS.get("confirm");
 // 予約がその患者枠をふさぐか(DB の jp_booking_blocks_slot と同じルール)
 // 患者枠内の予約: 同時刻 or 短時間施術以外は終日 / 枠外(管理画面の 9:00 など): 所要時間(短時間30分・他60分)が重なる枠だけ
 const toMin = (hm) => { const [h, m] = String(hm).split(":").map(Number); return h * 60 + m; };
@@ -238,7 +265,7 @@ const TR = {
     ctaReserve: { ja: "ご予約はこちら", en: "Book an Appointment", zh: "立即预约", pt: "Fazer Reserva", es: "Reservar Cita", th: "จองคิว", vi: "Đặt lịch hẹn" },
     lookupLink: { ja: "予約の確認・キャンセル", en: "Check / Cancel Reservation", zh: "查询・取消预约", pt: "Consultar / Cancelar Reserva", es: "Consultar / Cancelar Cita", th: "ตรวจสอบ / ยกเลิกการจอง", vi: "Xem / Hủy lịch hẹn" },
     noticeTitle: {
-        ja: "ご予約の前にご確認ください",
+        ja: "予約の前に読んでください",
         en: "Please read before booking",
         zh: "预约前请确认以下事项",
         pt: "Leia antes de reservar",
@@ -247,7 +274,7 @@ const TR = {
         vi: "Vui lòng đọc trước khi đặt lịch",
     },
     noticeIsTreatment: {
-        ja: "こちらは、実際に処置を受けていただくためのご予約です。処置内容のご説明・ご相談のみをご希望の方は、このページからではなく通常の診察にお越しください。",
+        ja: "このページは、処置(施術)を受ける日の予約です。説明や相談だけをしたい方は、予約をせずに、ふつうの診察に来てください。",
         en: "This reservation is for actually receiving the treatment. If you only wish to ask about or discuss a treatment, please visit us for a regular consultation instead of booking here.",
         zh: "本预约用于实际接受处置(施术)。如果您只想了解或咨询处置内容,请不要在此预约,而是前来普通门诊就诊。",
         pt: "Esta reserva é para realizar de fato o procedimento. Se você deseja apenas informações ou uma consulta sobre o procedimento, venha a uma consulta normal em vez de reservar aqui.",
@@ -256,7 +283,7 @@ const TR = {
         vi: "Lịch hẹn này dành cho việc thực hiện thủ thuật. Nếu bạn chỉ muốn hỏi hoặc tư vấn về thủ thuật, vui lòng đến khám thông thường thay vì đặt lịch tại đây.",
     },
     noticeFasting: {
-        ja: "眠った状態での処置をご希望の方は、当日は朝食・昼食を召し上がらずにお越しください。",
+        ja: "眠った状態で処置を受けたい方は、当日の朝ごはんと昼ごはんを食べないで来てください。",
         en: "If you wish to be asleep (sedated) during the treatment, please come without eating breakfast or lunch that day.",
         zh: "如希望在睡眠(镇静)状态下接受处置,当天请勿进食早餐和午餐。",
         pt: "Se desejar fazer o procedimento dormindo (com sedação), venha sem tomar café da manhã e sem almoçar nesse dia.",
@@ -265,7 +292,7 @@ const TR = {
         vi: "Nếu bạn muốn ngủ (gây mê/an thần) trong khi làm thủ thuật, vui lòng không ăn sáng và ăn trưa vào ngày hôm đó.",
     },
     noticeNoMakeup: {
-        ja: "処置をする部位は、お化粧などをせずにお越しください。",
+        ja: "処置をするところには、お化粧をしないで来てください。",
         en: "Please come without makeup or cosmetics on the area to be treated.",
         zh: "接受处置的部位请勿化妆,请素颜前来。",
         pt: "Venha sem maquiagem ou cosméticos na área que será tratada.",
@@ -274,7 +301,7 @@ const TR = {
         vi: "Vui lòng không trang điểm hoặc dùng mỹ phẩm ở vùng sẽ làm thủ thuật.",
     },
     noticeAgree: {
-        ja: "確認しました ── 予約へ進む",
+        ja: "読みました ── 予約へ進む",
         en: "I understand — Continue",
         zh: "已确认,继续预约",
         pt: "Entendi — Continuar",
@@ -283,7 +310,7 @@ const TR = {
         vi: "Tôi đã hiểu — Tiếp tục",
     },
     noticeCancelPolicy: {
-        ja: "キャンセルされる場合は、必ず本サイトの「予約の確認・キャンセル」からご連絡ください。ご連絡のない無断キャンセルは、キャンセル料を申し受ける場合があります。",
+        ja: "キャンセルするときは、必ずこのサイトの「予約の確認・キャンセル」から連絡してください。連絡なしで来なかったときは、キャンセル料がかかることがあります。",
         en: "If you need to cancel, always do so via “Check / Cancel Reservation” on this site. No-shows without notice may be subject to a cancellation fee.",
         zh: "如需取消,请务必通过本网站的「查询・取消预约」告知。未经告知的无故取消,可能收取取消费用。",
         pt: "Se precisar cancelar, faça-o sempre por “Consultar / Cancelar Reserva” neste site. Faltas sem aviso podem estar sujeitas a taxa de cancelamento.",
@@ -291,9 +318,9 @@ const TR = {
         th: "หากต้องการยกเลิก กรุณาแจ้งผ่าน “ตรวจสอบ / ยกเลิกการจอง” บนเว็บไซต์นี้ทุกครั้ง การไม่มาโดยไม่แจ้งอาจมีค่าธรรมเนียมการยกเลิก",
         vi: "Nếu cần hủy, vui lòng luôn hủy qua mục “Xem / Hủy lịch hẹn” trên trang này. Không đến mà không báo trước có thể bị tính phí hủy.",
     },
-    consentTitle: { ja: "施術のリスクについて", en: "Treatment Risks", zh: "施术风险须知", pt: "Riscos do Procedimento", es: "Riesgos del Procedimiento", th: "ความเสี่ยงของหัตถการ", vi: "Rủi ro của thủ thuật" },
+    consentTitle: { ja: "処置のリスク(起こるかもしれないこと)", en: "Treatment Risks", zh: "施术风险须知", pt: "Riscos do Procedimento", es: "Riesgos del Procedimiento", th: "ความเสี่ยงของหัตถการ", vi: "Rủi ro của thủ thuật" },
     consentIntro: {
-        ja: "すべての施術には、以下のような一般的なリスク・副作用があります。内容をご確認のうえ、同意いただける場合のみ次へお進みください。",
+        ja: "どの処置にも、下のようなリスクや副作用があります。読んで、同意できる方だけ次へ進んでください。",
         en: "All treatments carry the following general risks and side effects. Please read them and proceed only if you agree.",
         zh: "所有施术均存在以下一般风险和副作用。请确认内容,同意后再继续。",
         pt: "Todos os procedimentos apresentam os seguintes riscos e efeitos colaterais gerais. Leia e prossiga apenas se concordar.",
@@ -302,7 +329,7 @@ const TR = {
         vi: "Mọi thủ thuật đều có những rủi ro và tác dụng phụ chung như sau. Vui lòng đọc và chỉ tiếp tục nếu bạn đồng ý.",
     },
     consentCheck: {
-        ja: "上記のリスクを理解し、同意します",
+        ja: "上のリスクを読んで、同意します",
         en: "I understand and agree to the risks above",
         zh: "我已理解并同意上述风险",
         pt: "Compreendo e concordo com os riscos acima",
@@ -311,14 +338,14 @@ const TR = {
         vi: "Tôi đã hiểu và đồng ý với các rủi ro trên",
     },
     consentNext: { ja: "同意して次へ", en: "Agree and Continue", zh: "同意并继续", pt: "Concordar e Continuar", es: "Aceptar y Continuar", th: "ยินยอมและดำเนินการต่อ", vi: "Đồng ý và tiếp tục" },
-    consentErr: { ja: "同意のチェックをお願いします", en: "Please check the consent box", zh: "请勾选同意", pt: "Marque a caixa de consentimento", es: "Marque la casilla de consentimiento", th: "กรุณาทำเครื่องหมายยินยอม", vi: "Vui lòng đánh dấu ô đồng ý" },
+    consentErr: { ja: "同意のチェックを入れてください", en: "Please check the consent box", zh: "请勾选同意", pt: "Marque a caixa de consentimento", es: "Marque la casilla de consentimiento", th: "กรุณาทำเครื่องหมายยินยอม", vi: "Vui lòng đánh dấu ô đồng ý" },
     stepMenu: { ja: "メニュー", en: "Menu", zh: "项目", pt: "Menu", es: "Menú", th: "เมนู", vi: "Dịch vụ" },
     stepDate: { ja: "日付", en: "Date", zh: "日期", pt: "Data", es: "Fecha", th: "วันที่", vi: "Ngày" },
     stepTime: { ja: "時間", en: "Time", zh: "时间", pt: "Hora", es: "Hora", th: "เวลา", vi: "Giờ" },
     stepInput: { ja: "入力", en: "Details", zh: "填写", pt: "Dados", es: "Datos", th: "ข้อมูล", vi: "Thông tin" },
     stepConfirm: { ja: "確認", en: "Confirm", zh: "确认", pt: "Confirmar", es: "Confirmar", th: "ยืนยัน", vi: "Xác nhận" },
     calInstruction: {
-        ja: "○ の日をタップしてください(受付 13:00〜14:00)",
+        ja: "○ の日を押してください(時間は 13:00〜14:00)",
         en: "Tap a date marked ○  (Hours: 13:00–14:00)",
         zh: "请点击标有 ○ 的日期(受理时间 13:00–14:00)",
         pt: "Toque em uma data com ○  (Horário: 13:00–14:00)",
@@ -327,11 +354,11 @@ const TR = {
         vi: "Chọn ngày có dấu ○  (Giờ nhận: 13:00–14:00)",
     },
     legendOpen: { ja: "○ 空きあり", en: "○ Available", zh: "○ 可预约", pt: "○ Disponível", es: "○ Disponible", th: "○ ว่าง", vi: "○ Còn chỗ" },
-    legendFull: { ja: "満 満枠(要相談)", en: "✕ Full (inquiry OK)", zh: "满 已满(可咨询)", pt: "✕ Lotado (consulte)", es: "✕ Completo (consultar)", th: "✕ เต็ม (สอบถามได้)", vi: "✕ Hết chỗ (có thể hỏi)" },
-    legendClosed: { ja: "− 受付なし", en: "− Closed", zh: "− 不受理", pt: "− Fechado", es: "− Cerrado", th: "− ปิดรับ", vi: "− Nghỉ" },
-    chooseTime: { ja: "ご希望の時間をお選びください", en: "Please choose a time", zh: "请选择时间", pt: "Escolha um horário", es: "Elija una hora", th: "กรุณาเลือกเวลา", vi: "Vui lòng chọn giờ" },
+    legendFull: { ja: "満 いっぱい(電話で相談)", en: "✕ Full (call us)", zh: "满 已满(请来电)", pt: "✕ Lotado (ligue)", es: "✕ Completo (llame)", th: "✕ เต็ม (โทรสอบถาม)", vi: "✕ Hết chỗ (gọi điện)" },
+    legendClosed: { ja: "− 予約できない日", en: "− Closed", zh: "− 不受理", pt: "− Fechado", es: "− Cerrado", th: "− ปิดรับ", vi: "− Nghỉ" },
+    chooseTime: { ja: "時間を選んでください", en: "Please choose a time", zh: "请选择时间", pt: "Escolha um horário", es: "Elija una hora", th: "กรุณาเลือกเวลา", vi: "Vui lòng chọn giờ" },
     chooseMenu: {
-        ja: "ご希望の施術をお選びください(複数選択できます)",
+        ja: "受けたい処置を選んでください(2つ以上選べます)",
         en: "Select your treatments (you can choose more than one)",
         zh: "请选择施术项目(可多选)",
         pt: "Selecione os tratamentos (múltipla escolha)",
@@ -339,10 +366,10 @@ const TR = {
         th: "เลือกเมนูที่ต้องการ (เลือกได้หลายรายการ)",
         vi: "Chọn dịch vụ (có thể chọn nhiều)",
     },
-    menuNext: { ja: "日付選択へ進む", en: "Continue to dates", zh: "前往选择日期", pt: "Escolher a data", es: "Elegir fecha", th: "ไปเลือกวันที่", vi: "Tiếp tục chọn ngày" },
-    backToMenu: { ja: "← メニュー選択に戻る", en: "← Back to menu", zh: "← 返回选择项目", pt: "← Voltar ao menu", es: "← Volver al menú", th: "← กลับไปเลือกเมนู", vi: "← Quay lại dịch vụ" },
+    menuNext: { ja: "日にちを選ぶ", en: "Continue to dates", zh: "前往选择日期", pt: "Escolher a data", es: "Elegir fecha", th: "ไปเลือกวันที่", vi: "Tiếp tục chọn ngày" },
+    backToMenu: { ja: "← メニューに戻る", en: "← Back to menu", zh: "← 返回选择项目", pt: "← Voltar ao menu", es: "← Volver al menú", th: "← กลับไปเลือกเมนู", vi: "← Quay lại dịch vụ" },
     errTreatmentSel: {
-        ja: "施術メニューを1つ以上お選びください",
+        ja: "処置を1つ以上選んでください",
         en: "Please select at least one treatment",
         zh: "请至少选择一个项目",
         pt: "Selecione ao menos um tratamento",
@@ -350,27 +377,27 @@ const TR = {
         th: "กรุณาเลือกอย่างน้อย 1 รายการ",
         vi: "Vui lòng chọn ít nhất một dịch vụ",
     },
-    backToDate: { ja: "← 日付選択に戻る", en: "← Back to dates", zh: "← 返回选择日期", pt: "← Voltar às datas", es: "← Volver a fechas", th: "← กลับไปเลือกวันที่", vi: "← Quay lại chọn ngày" },
-    backToTime: { ja: "← 時間選択に戻る", en: "← Back to time", zh: "← 返回选择时间", pt: "← Voltar ao horário", es: "← Volver a la hora", th: "← กลับไปเลือกเวลา", vi: "← Quay lại chọn giờ" },
+    backToDate: { ja: "← 日にちに戻る", en: "← Back to dates", zh: "← 返回选择日期", pt: "← Voltar às datas", es: "← Volver a fechas", th: "← กลับไปเลือกวันที่", vi: "← Quay lại chọn ngày" },
+    backToTime: { ja: "← 時間に戻る", en: "← Back to time", zh: "← 返回选择时间", pt: "← Voltar ao horário", es: "← Volver a la hora", th: "← กลับไปเลือกเวลา", vi: "← Quay lại chọn giờ" },
     backToForm: { ja: "← 入力に戻る", en: "← Back to details", zh: "← 返回填写", pt: "← Voltar aos dados", es: "← Volver a datos", th: "← กลับไปแก้ไขข้อมูล", vi: "← Quay lại thông tin" },
     backToTop: { ja: "← トップに戻る", en: "← Back to top", zh: "← 返回首页", pt: "← Voltar ao início", es: "← Volver al inicio", th: "← กลับหน้าแรก", vi: "← Về trang đầu" },
     fieldName: {
-        ja: "お名前(カタカナ または 英字)",
-        en: "Name (Katakana or English letters)",
-        zh: "姓名(片假名或英文字母)",
-        pt: "Nome (Katakana ou letras romanas)",
-        es: "Nombre (Katakana o letras romanas)",
-        th: "ชื่อ (คาตากานะ หรือ ตัวอักษรภาษาอังกฤษ)",
-        vi: "Họ tên (Katakana hoặc chữ Latin không dấu)",
+        ja: "お名前",
+        en: "Name",
+        zh: "姓名",
+        pt: "Nome",
+        es: "Nombre",
+        th: "ชื่อ",
+        vi: "Họ tên",
     },
-    fieldNamePh: { ja: "ヤマダ ハナコ / TARO YAMADA", en: "TARO YAMADA", zh: "TARO YAMADA", pt: "TARO YAMADA", es: "TARO YAMADA", th: "TARO YAMADA", vi: "NGUYEN VAN AN" },
+    fieldNamePh: { ja: "山田 花子", en: "TARO YAMADA", zh: "TARO YAMADA", pt: "TARO YAMADA", es: "TARO YAMADA", th: "TARO YAMADA", vi: "NGUYEN VAN AN" },
     fieldId: { ja: "診察券番号", en: "Patient ID number", zh: "诊察券号码", pt: "Número do cartão de paciente", es: "Número de tarjeta de paciente", th: "หมายเลขบัตรผู้ป่วย", vi: "Số thẻ bệnh nhân" },
     fieldIdPh: { ja: "例: 12345", en: "e.g. 12345", zh: "例: 12345", pt: "ex.: 12345", es: "ej.: 12345", th: "เช่น 12345", vi: "Ví dụ: 12345" },
-    fieldPhone: { ja: "携帯電話番号", en: "Mobile phone number", zh: "手机号码", pt: "Número de celular", es: "Número de móvil", th: "หมายเลขโทรศัพท์มือถือ", vi: "Số điện thoại di động" },
-    fieldEmail: { ja: "メールアドレス(予約確認メールをお送りします)", en: "Email (we will send a confirmation)", zh: "电子邮箱(将发送预约确认邮件)", pt: "E-mail (enviaremos a confirmação)", es: "Correo electrónico (enviaremos la confirmación)", th: "อีเมล (เราจะส่งอีเมลยืนยันการจอง)", vi: "Email (chúng tôi sẽ gửi email xác nhận)" },
-    errEmail: { ja: "メールアドレスを正しく入力してください", en: "Please enter a valid email address", zh: "请输入正确的电子邮箱", pt: "Insira um e-mail válido", es: "Ingrese un correo válido", th: "กรุณากรอกอีเมลที่ถูกต้อง", vi: "Vui lòng nhập email hợp lệ" },
+    fieldPhone: { ja: "携帯電話の番号", en: "Mobile phone number", zh: "手机号码", pt: "Número de celular", es: "Número de móvil", th: "หมายเลขโทรศัพท์มือถือ", vi: "Số điện thoại di động" },
+    fieldEmail: { ja: "メールアドレス", en: "Email (we will send a confirmation)", zh: "电子邮箱(将发送预约确认邮件)", pt: "E-mail (enviaremos a confirmação)", es: "Correo electrónico (enviaremos la confirmación)", th: "อีเมล (เราจะส่งอีเมลยืนยันการจอง)", vi: "Email (chúng tôi sẽ gửi email xác nhận)" },
+    errEmail: { ja: "メールアドレスが正しくないようです。もう一度見てください", en: "Please enter a valid email address", zh: "请输入正确的电子邮箱", pt: "Insira um e-mail válido", es: "Ingrese un correo válido", th: "กรุณากรอกอีเมลที่ถูกต้อง", vi: "Vui lòng nhập email hợp lệ" },
     errIdFormat: {
-        ja: "診察券番号は診察券に書かれている数字で入力してください。診察券をお持ちでない方は、先に通常の診察にお越しください。",
+        ja: "診察券に書いてある数字を入れてください。わからないときは、受付か電話で聞いてください。",
         en: "Enter the number printed on your patient card. If you do not have a card yet, please visit us for a regular consultation first.",
         zh: "请输入诊察券上印的数字。如果您还没有诊察券,请先来普通门诊就诊。",
         pt: "Digite o número impresso no seu cartão de paciente. Se ainda não tem cartão, venha primeiro a uma consulta normal.",
@@ -379,7 +406,7 @@ const TR = {
         vi: "Vui lòng nhập số in trên thẻ bệnh nhân. Nếu chưa có thẻ, vui lòng đến khám thông thường trước.",
     },
     errBlocked: {
-        ja: "申し訳ありませんが、現在WEB予約をお受けできません。お手数ですがクリニックへお電話ください。",
+        ja: "すみません。今はWEB予約ができません。クリニックに電話してください。",
         en: "Sorry, we cannot accept your online reservation at this time. Please call the clinic.",
         zh: "抱歉,目前无法受理您的网上预约。请致电诊所。",
         pt: "Desculpe, no momento não podemos aceitar sua reserva online. Ligue para a clínica.",
@@ -387,7 +414,7 @@ const TR = {
         th: "ขออภัย ขณะนี้ไม่สามารถรับการจองออนไลน์ของคุณได้ กรุณาโทรติดต่อคลินิก",
         vi: "Rất tiếc, hiện chúng tôi không thể nhận đặt lịch trực tuyến của bạn. Vui lòng gọi điện cho phòng khám.",
     },
-    errName: { ja: "お名前を入力してください", en: "Please enter your name", zh: "请输入姓名", pt: "Insira seu nome", es: "Ingrese su nombre", th: "กรุณากรอกชื่อ", vi: "Vui lòng nhập họ tên" },
+    errName: { ja: "お名前を入れてください", en: "Please enter your name", zh: "请输入姓名", pt: "Insira seu nome", es: "Ingrese su nombre", th: "กรุณากรอกชื่อ", vi: "Vui lòng nhập họ tên" },
     errNameFormat: {
         ja: "カタカナまたは英字で入力してください",
         en: "Use Katakana or English letters only",
@@ -397,19 +424,19 @@ const TR = {
         th: "ใช้คาตากานะหรือตัวอักษรภาษาอังกฤษเท่านั้น",
         vi: "Chỉ dùng Katakana hoặc chữ Latin không dấu",
     },
-    errId: { ja: "診察券番号を入力してください", en: "Please enter your patient ID", zh: "请输入诊察券号码", pt: "Insira o número do cartão", es: "Ingrese el número de tarjeta", th: "กรุณากรอกหมายเลขบัตรผู้ป่วย", vi: "Vui lòng nhập số thẻ bệnh nhân" },
-    errPhone: { ja: "携帯番号を正しく入力してください", en: "Please enter a valid phone number", zh: "请输入正确的手机号码", pt: "Insira um número válido", es: "Ingrese un número válido", th: "กรุณากรอกหมายเลขโทรศัพท์ที่ถูกต้อง", vi: "Vui lòng nhập số điện thoại hợp lệ" },
-    toConfirm: { ja: "確認画面へ進む", en: "Continue to confirmation", zh: "前往确认页面", pt: "Continuar para confirmação", es: "Continuar a confirmación", th: "ไปหน้ายืนยัน", vi: "Tiếp tục đến xác nhận" },
-    confirmLead: { ja: "以下の内容でご予約を確定します", en: "Please confirm your reservation", zh: "请确认以下预约内容", pt: "Confirme sua reserva", es: "Confirme su reserva", th: "กรุณายืนยันการจองของคุณ", vi: "Vui lòng xác nhận lịch hẹn" },
+    errId: { ja: "診察券番号を入れてください", en: "Please enter your patient ID", zh: "请输入诊察券号码", pt: "Insira o número do cartão", es: "Ingrese el número de tarjeta", th: "กรุณากรอกหมายเลขบัตรผู้ป่วย", vi: "Vui lòng nhập số thẻ bệnh nhân" },
+    errPhone: { ja: "電話番号が正しくないようです", en: "Please enter a valid phone number", zh: "请输入正确的手机号码", pt: "Insira um número válido", es: "Ingrese un número válido", th: "กรุณากรอกหมายเลขโทรศัพท์ที่ถูกต้อง", vi: "Vui lòng nhập số điện thoại hợp lệ" },
+    toConfirm: { ja: "確認へ進む", en: "Continue to confirmation", zh: "前往确认页面", pt: "Continuar para confirmação", es: "Continuar a confirmación", th: "ไปหน้ายืนยัน", vi: "Tiếp tục đến xác nhận" },
+    confirmLead: { ja: "この内容で予約します。まちがいがないか見てください", en: "Please confirm your reservation", zh: "请确认以下预约内容", pt: "Confirme sua reserva", es: "Confirme su reserva", th: "กรุณายืนยันการจองของคุณ", vi: "Vui lòng xác nhận lịch hẹn" },
     rowDate: { ja: "日時", en: "Date & Time", zh: "日期时间", pt: "Data e hora", es: "Fecha y hora", th: "วันและเวลา", vi: "Ngày giờ" },
     rowContent: { ja: "内容", en: "Treatment", zh: "项目", pt: "Tratamento", es: "Tratamiento", th: "รายการ", vi: "Dịch vụ" },
     rowName: { ja: "お名前", en: "Name", zh: "姓名", pt: "Nome", es: "Nombre", th: "ชื่อ", vi: "Họ tên" },
     rowId: { ja: "診察券番号", en: "Patient ID", zh: "诊察券号码", pt: "Nº do cartão", es: "Nº de tarjeta", th: "หมายเลขบัตร", vi: "Số thẻ" },
     rowEmail: { ja: "メール", en: "Email", zh: "邮箱", pt: "E-mail", es: "Correo", th: "อีเมล", vi: "Email" },
     rowPhone: { ja: "携帯番号", en: "Mobile", zh: "手机号码", pt: "Celular", es: "Móvil", th: "โทรศัพท์", vi: "Điện thoại" },
-    confirmBtn: { ja: "この内容で予約を確定する", en: "Confirm reservation", zh: "确定预约", pt: "Confirmar reserva", es: "Confirmar reserva", th: "ยืนยันการจอง", vi: "Xác nhận đặt lịch" },
-    submitting: { ja: "予約を確定しています…", en: "Confirming…", zh: "正在确认…", pt: "Confirmando…", es: "Confirmando…", th: "กำลังยืนยัน…", vi: "Đang xác nhận…" },
-    doneTitle: { ja: "ご予約が完了しました", en: "Reservation Complete", zh: "预约已完成", pt: "Reserva Concluída", es: "Reserva Completada", th: "การจองเสร็จสมบูรณ์", vi: "Đặt lịch thành công" },
+    confirmBtn: { ja: "この内容で予約する", en: "Confirm reservation", zh: "确定预约", pt: "Confirmar reserva", es: "Confirmar reserva", th: "ยืนยันการจอง", vi: "Xác nhận đặt lịch" },
+    submitting: { ja: "予約しています…", en: "Confirming…", zh: "正在确认…", pt: "Confirmando…", es: "Confirmando…", th: "กำลังยืนยัน…", vi: "Đang xác nhận…" },
+    doneTitle: { ja: "予約ができました", en: "Reservation Complete", zh: "预约已完成", pt: "Reserva Concluída", es: "Reserva Completada", th: "การจองเสร็จสมบูรณ์", vi: "Đặt lịch thành công" },
     bookingNoLabel: { ja: "予約番号", en: "Booking No.", zh: "预约编号", pt: "Nº da reserva", es: "Nº de reserva", th: "หมายเลขการจอง", vi: "Mã đặt lịch" },
     addCal: { ja: "📅 カレンダーに追加して忘れず来院", en: "📅 Add to calendar", zh: "📅 添加到日历", pt: "📅 Adicionar ao calendário", es: "📅 Añadir al calendario", th: "📅 เพิ่มลงปฏิทิน", vi: "📅 Thêm vào lịch" },
     callNoteTitle: { ja: "前日に確認のお電話をします", en: "We will call you the day before", zh: "前一天我们会致电确认", pt: "Ligaremos no dia anterior", es: "Le llamaremos el día anterior", th: "คลินิกจะโทรยืนยันในวันก่อนนัด", vi: "Chúng tôi sẽ gọi điện xác nhận trước một ngày" },
@@ -422,8 +449,48 @@ const TR = {
         th: "ในวันก่อนทำหัตถการ คลินิกจะโทรหาคุณเพื่อยืนยันการจอง หากไม่ได้รับสาย กรุณาโทรกลับมาที่คลินิก หากติดต่อไม่ได้และไม่สามารถยืนยันการจองได้ การจองจะถูกยกเลิกโดยอัตโนมัติ",
         vi: "Một ngày trước khi làm thủ thuật, phòng khám sẽ gọi điện để xác nhận lịch hẹn. Nếu bạn không nghe máy được, vui lòng gọi lại cho phòng khám. Nếu chúng tôi không liên lạc được và không thể xác nhận lịch hẹn, lịch hẹn sẽ tự động bị hủy.",
     },
+    fieldEmail2: { ja: "メールアドレス(もう一度)", en: "Email (again)", zh: "电子邮箱(再输入一次)", pt: "E-mail (de novo)", es: "Correo (otra vez)", th: "อีเมล (อีกครั้ง)", vi: "Email (nhập lại)" },
+    errEmail2: { ja: "2つのメールアドレスがちがいます。もう一度見てください", en: "The two email addresses do not match", zh: "两次输入的邮箱不一致", pt: "Os dois e-mails não são iguais", es: "Los dos correos no coinciden", th: "อีเมลทั้งสองไม่ตรงกัน", vi: "Hai email không giống nhau" },
+    emailHelp: { ja: "予約の確認メールが届きます。届かないときは「迷惑メール」も見てください。", en: "We will send a confirmation email. If it does not arrive, check your spam folder.", zh: "我们会发送确认邮件。如未收到,请查看垃圾邮件箱。", pt: "Enviaremos um e-mail de confirmação. Se não chegar, veja a caixa de spam.", es: "Le enviaremos un correo de confirmación. Si no llega, revise el spam.", th: "เราจะส่งอีเมลยืนยัน หากไม่ได้รับ กรุณาดูในกล่องสแปม", vi: "Chúng tôi sẽ gửi email xác nhận. Nếu không nhận được, hãy xem hộp thư rác." },
+    idHelp: { ja: "診察券に書いてある数字です。わからないときは、受付か電話で聞いてください。", en: "This is the number on your patient card. If you do not know it, ask at reception or call us.", zh: "诊察券上印的号码。如不清楚,请向前台或来电确认。", pt: "É o número do seu cartão de paciente. Se não souber, pergunte na recepção ou ligue.", es: "Es el número de su tarjeta de paciente. Si no lo sabe, pregunte en recepción o llame.", th: "คือหมายเลขบนบัตรผู้ป่วย หากไม่ทราบ กรุณาสอบถามที่แผนกต้อนรับหรือโทรหาเรา", vi: "Là số in trên thẻ bệnh nhân. Nếu không biết, hãy hỏi quầy lễ tân hoặc gọi điện." },
+    callUs: { ja: "クリニックに電話する", en: "Call the clinic", zh: "致电诊所", pt: "Ligar para a clínica", es: "Llamar a la clínica", th: "โทรหาคลินิก", vi: "Gọi phòng khám" },
+    sedQ: { ja: "眠った状態で処置を受けたいですか？", en: "Do you want to be asleep (sedated) during the treatment?", zh: "您希望在睡眠(镇静)状态下接受处置吗?", pt: "Quer fazer o procedimento dormindo (com sedação)?", es: "¿Desea hacer el procedimiento dormido (con sedación)?", th: "ต้องการทำหัตถการขณะหลับ (ใช้ยาระงับความรู้สึก) หรือไม่?", vi: "Bạn có muốn ngủ (an thần) khi làm thủ thuật không?" },
+    sedYes: { ja: "はい", en: "Yes", zh: "是", pt: "Sim", es: "Sí", th: "ใช่", vi: "Có" },
+    sedNo: { ja: "いいえ", en: "No", zh: "否", pt: "Não", es: "No", th: "ไม่", vi: "Không" },
+    sedNote: { ja: "※ 本当に眠って行うかどうかは、当日に医師と相談して決めます。", en: "* Whether you are actually sedated will be decided with the doctor on the day.", zh: "※ 是否实际采用镇静,将在当天与医生商量后决定。", pt: "* Se a sedação será realmente feita é decidido com o médico no dia.", es: "* Si realmente se usará sedación se decide con el médico ese día.", th: "* จะใช้ยาระงับความรู้สึกจริงหรือไม่ จะตัดสินใจร่วมกับแพทย์ในวันนัด", vi: "* Việc có thực sự an thần hay không sẽ được quyết định cùng bác sĩ vào ngày hẹn." },
+    sedFast: { ja: "「はい」の方は、当日の朝ごはんと昼ごはんを食べないで来てください。", en: "If “Yes”: do not eat breakfast or lunch on the day.", zh: "选择「是」的方,当天请不要吃早餐和午餐。", pt: "Se “Sim”: não tome café da manhã nem almoce no dia.", es: "Si “Sí”: no desayune ni almuerce ese día.", th: "หากเลือก “ใช่”: งดอาหารเช้าและกลางวันในวันนัด", vi: "Nếu chọn “Có”: không ăn sáng và ăn trưa vào ngày hẹn." },
+    errSed: { ja: "「はい」か「いいえ」を選んでください", en: "Please choose Yes or No", zh: "请选择「是」或「否」", pt: "Escolha Sim ou Não", es: "Elija Sí o No", th: "กรุณาเลือก ใช่ หรือ ไม่", vi: "Vui lòng chọn Có hoặc Không" },
+    rowSed: { ja: "眠って処置", en: "Sedation", zh: "镇静", pt: "Sedação", es: "Sedación", th: "ทำขณะหลับ", vi: "An thần" },
+    fullTitle: { ja: "この日は予約がいっぱいです", en: "This date is fully booked", zh: "这一天已约满", pt: "Esta data está lotada", es: "Esta fecha está completa", th: "วันนี้เต็มแล้ว", vi: "Ngày này đã kín lịch" },
+    fullNote: { ja: "この日を希望する方は、クリニックに電話してください。ほかの日は、カレンダーの ○ の日を選んでください。", en: "If you want this date, please call the clinic. Or choose another date marked ○.", zh: "如希望预约这一天,请致电诊所。或请选择其他标有 ○ 的日期。", pt: "Se quiser esta data, ligue para a clínica. Ou escolha outra data com ○.", es: "Si desea esta fecha, llame a la clínica. O elija otra fecha con ○.", th: "หากต้องการวันนี้ กรุณาโทรหาคลินิก หรือเลือกวันอื่นที่มี ○", vi: "Nếu muốn ngày này, vui lòng gọi phòng khám. Hoặc chọn ngày khác có dấu ○." },
+    callBody: { ja: "予約の確認の電話です。電話に出られなかったときは、クリニックに電話をかけ直してください。確認ができないときは、予約は自動でキャンセルになります。", en: "This call is to confirm your reservation. If you miss it, please call the clinic back. If we cannot confirm, your reservation will be cancelled automatically.", zh: "这是确认预约的电话。如未接到,请回电诊所。如无法确认,预约将自动取消。", pt: "A ligação é para confirmar sua reserva. Se não atender, retorne para a clínica. Se não conseguirmos confirmar, a reserva será cancelada automaticamente.", es: "La llamada es para confirmar su reserva. Si no contesta, devuelva la llamada a la clínica. Si no podemos confirmar, la reserva se cancelará automáticamente.", th: "เป็นการโทรเพื่อยืนยันการจอง หากไม่ได้รับสาย กรุณาโทรกลับมาที่คลินิก หากยืนยันไม่ได้ การจองจะถูกยกเลิกโดยอัตโนมัติ", vi: "Đây là cuộc gọi xác nhận lịch hẹn. Nếu lỡ cuộc gọi, vui lòng gọi lại cho phòng khám. Nếu không xác nhận được, lịch hẹn sẽ tự động bị hủy." },
+    doneMail: { ja: "確認のメールを送りました。届かないときは「迷惑メール」も見てください。", en: "We sent you a confirmation email. If you cannot find it, check your spam folder.", zh: "确认邮件已发送。如未收到,请查看垃圾邮件箱。", pt: "Enviamos um e-mail de confirmação. Se não encontrar, veja o spam.", es: "Le enviamos un correo de confirmación. Si no lo encuentra, revise el spam.", th: "เราได้ส่งอีเมลยืนยันแล้ว หากไม่พบ กรุณาดูในกล่องสแปม", vi: "Chúng tôi đã gửi email xác nhận. Nếu không thấy, hãy xem hộp thư rác." },
+    attTitle: { ja: "来院の確認", en: "Confirm your visit", zh: "确认到院", pt: "Confirmar presença", es: "Confirmar asistencia", th: "ยืนยันการมาตามนัด", vi: "Xác nhận đến khám" },
+    attLead: { ja: "予約の日に来られる方は、下のボタンを押してください。", en: "If you will come on your reservation date, press the button below.", zh: "如您能按预约日期到院,请按下方按钮。", pt: "Se você virá na data da reserva, aperte o botão abaixo.", es: "Si vendrá en la fecha de su reserva, pulse el botón de abajo.", th: "หากคุณจะมาตามวันนัด กรุณากดปุ่มด้านล่าง", vi: "Nếu bạn sẽ đến đúng ngày hẹn, hãy bấm nút bên dưới." },
+    attBtn: { ja: "来院します", en: "I will come", zh: "我会到院", pt: "Eu vou", es: "Asistiré", th: "ฉันจะมา", vi: "Tôi sẽ đến" },
+    attSending: { ja: "送っています…", en: "Sending…", zh: "发送中…", pt: "Enviando…", es: "Enviando…", th: "กำลังส่ง…", vi: "Đang gửi…" },
+    attDone: { ja: "確認できました。ありがとうございます。", en: "Confirmed. Thank you!", zh: "已确认。谢谢!", pt: "Confirmado. Obrigado!", es: "Confirmado. ¡Gracias!", th: "ยืนยันแล้ว ขอบคุณค่ะ", vi: "Đã xác nhận. Cảm ơn bạn!" },
+    attErr: { ja: "確認できませんでした。クリニックに電話してください。", en: "We could not confirm. Please call the clinic.", zh: "无法确认。请致电诊所。", pt: "Não foi possível confirmar. Ligue para a clínica.", es: "No se pudo confirmar. Llame a la clínica.", th: "ไม่สามารถยืนยันได้ กรุณาโทรหาคลินิก", vi: "Không thể xác nhận. Vui lòng gọi phòng khám." },
+    callTitleD: {
+        ja: (d) => `${d}に、クリニックから電話します`,
+        en: (d) => `We will call you on ${d}`,
+        zh: (d) => `${d} 诊所会给您打电话`,
+        pt: (d) => `Ligaremos para você em ${d}`,
+        es: (d) => `Le llamaremos el ${d}`,
+        th: (d) => `คลินิกจะโทรหาคุณในวันที่ ${d}`,
+        vi: (d) => `Chúng tôi sẽ gọi cho bạn vào ${d}`,
+    },
+    attWait: {
+        ja: (d, tt) => `${d} ${tt}〜 お待ちしています。`,
+        en: (d, tt) => `See you on ${d} at ${tt}.`,
+        zh: (d, tt) => `${d} ${tt} 恭候您的光临。`,
+        pt: (d, tt) => `Esperamos você em ${d} às ${tt}.`,
+        es: (d, tt) => `Le esperamos el ${d} a las ${tt}.`,
+        th: (d, tt) => `พบกันวันที่ ${d} เวลา ${tt}`,
+        vi: (d, tt) => `Hẹn gặp bạn vào ${d} lúc ${tt}.`,
+    },
     cancelNote: {
-        ja: "キャンセルはご予約前日の12:00まで「予約の確認・キャンセル」から承ります。それ以降はお電話にてご連絡ください。ご連絡のない無断キャンセルは、キャンセル料を申し受ける場合があります。",
+        ja: "キャンセルは、予約の前の日の12:00まで「予約の確認・キャンセル」からできます。それより後は、電話で連絡してください。連絡なしで来なかったときは、キャンセル料がかかることがあります。",
         en: "Cancellations are accepted via “Check / Cancel Reservation” until 12:00 noon the day before. After that, please call the clinic. No-shows without notice may be subject to a cancellation fee.",
         zh: "取消预约请在预约前一天中午12:00前通过「查询・取消预约」办理。逾期请致电诊所。未经告知的无故取消,可能收取取消费用。",
         pt: "Cancelamentos são aceitos por “Consultar / Cancelar Reserva” até 12h do dia anterior. Depois disso, ligue para a clínica. Faltas sem aviso podem estar sujeitas a taxa de cancelamento.",
@@ -432,7 +499,7 @@ const TR = {
         vi: "Có thể hủy qua “Xem / Hủy lịch hẹn” đến 12:00 trưa ngày hôm trước. Sau thời gian đó, vui lòng gọi điện cho phòng khám. Không đến mà không báo trước có thể bị tính phí hủy.",
     },
     cancelLocked: {
-        ja: "キャンセル期限(前日12:00)を過ぎています。お手数ですがクリニックへお電話ください。",
+        ja: "キャンセルできる時間(前の日の12:00まで)を過ぎています。クリニックに電話してください。",
         en: "The cancellation deadline (12:00 noon the day before) has passed. Please call the clinic.",
         zh: "已过取消期限(前一天中午12:00)。请致电诊所。",
         pt: "O prazo de cancelamento (12h do dia anterior) expirou. Ligue para a clínica.",
@@ -441,7 +508,7 @@ const TR = {
         vi: "Đã quá hạn hủy (12:00 trưa ngày hôm trước). Vui lòng gọi điện cho phòng khám.",
     },
     cancelDeadlineInfo: {
-        ja: "※ キャンセルはご予約前日の12:00まで承ります",
+        ja: "※ キャンセルは、予約の前の日の12:00までできます",
         en: "※ Cancellations accepted until 12:00 noon the day before",
         zh: "※ 取消受理至预约前一天中午12:00",
         pt: "※ Cancelamentos até 12h do dia anterior",
@@ -450,7 +517,7 @@ const TR = {
         vi: "※ Nhận hủy đến 12:00 trưa ngày hôm trước",
     },
     errDup: {
-        ja: "同じ診察券番号でのご予約が既にあります。日時を変更される場合は、先に既存のご予約をキャンセルしてください。",
+        ja: "同じ診察券番号の予約がすでにあります。日にちを変えたいときは、先に今の予約をキャンセルしてください。",
         en: "A reservation already exists for this patient ID. Please cancel the existing reservation first.",
         zh: "该诊察券号码已有预约。如需更改,请先取消现有预约。",
         pt: "Já existe uma reserva para este cartão. Cancele a reserva existente primeiro.",
@@ -459,7 +526,7 @@ const TR = {
         vi: "Số thẻ bệnh nhân này đã có lịch hẹn. Vui lòng hủy lịch hẹn hiện tại trước.",
     },
     errTaken: {
-        ja: "申し訳ありません。この枠はご予約いただけなくなりました。別の日をお選びください。",
+        ja: "すみません。この時間は予約できなくなりました。ほかの日を選んでください。",
         en: "Sorry, this slot is no longer available. Please choose another date.",
         zh: "抱歉,该时段已无法预约。请选择其他日期。",
         pt: "Desculpe, este horário não está mais disponível. Escolha outra data.",
@@ -468,7 +535,7 @@ const TR = {
         vi: "Rất tiếc, khung giờ này không còn trống. Vui lòng chọn ngày khác.",
     },
     errSave: {
-        ja: "予約の保存に失敗しました。もう一度お試しください。",
+        ja: "予約できませんでした。もう一度ためしてください。",
         en: "Failed to save. Please try again.",
         zh: "保存失败,请重试。",
         pt: "Falha ao salvar. Tente novamente.",
@@ -477,7 +544,7 @@ const TR = {
         vi: "Lưu thất bại. Vui lòng thử lại.",
     },
     errLookup: {
-        ja: "予約の検索に失敗しました。もう一度お試しください。",
+        ja: "うまく調べられませんでした。もう一度ためしてください。",
         en: "Search failed. Please try again.",
         zh: "查询失败,请重试。",
         pt: "Falha na busca. Tente novamente.",
@@ -486,7 +553,7 @@ const TR = {
         vi: "Tìm kiếm thất bại. Vui lòng thử lại.",
     },
     errCancel: {
-        ja: "キャンセルに失敗しました。お手数ですがクリニックへお電話ください。",
+        ja: "キャンセルできませんでした。クリニックに電話してください。",
         en: "Cancellation failed. Please call the clinic.",
         zh: "取消失败,请致电诊所。",
         pt: "Falha ao cancelar. Ligue para a clínica.",
@@ -494,11 +561,11 @@ const TR = {
         th: "ยกเลิกไม่สำเร็จ กรุณาโทรติดต่อคลินิก",
         vi: "Hủy thất bại. Vui lòng gọi điện cho phòng khám.",
     },
-    loadingAvail: { ja: "空き状況を確認しています…", en: "Checking availability…", zh: "正在确认空位…", pt: "Verificando disponibilidade…", es: "Verificando disponibilidad…", th: "กำลังตรวจสอบคิวว่าง…", vi: "Đang kiểm tra chỗ trống…" },
-    searchBtn: { ja: "予約を検索する", en: "Search reservation", zh: "查询预约", pt: "Buscar reserva", es: "Buscar reserva", th: "ค้นหาการจอง", vi: "Tìm lịch hẹn" },
-    searching: { ja: "検索しています…", en: "Searching…", zh: "查询中…", pt: "Buscando…", es: "Buscando…", th: "กำลังค้นหา…", vi: "Đang tìm…" },
+    loadingAvail: { ja: "空いている日を調べています…", en: "Checking availability…", zh: "正在确认空位…", pt: "Verificando disponibilidade…", es: "Verificando disponibilidad…", th: "กำลังตรวจสอบคิวว่าง…", vi: "Đang kiểm tra chỗ trống…" },
+    searchBtn: { ja: "予約をさがす", en: "Search reservation", zh: "查询预约", pt: "Buscar reserva", es: "Buscar reserva", th: "ค้นหาการจอง", vi: "Tìm lịch hẹn" },
+    searching: { ja: "さがしています…", en: "Searching…", zh: "查询中…", pt: "Buscando…", es: "Buscando…", th: "กำลังค้นหา…", vi: "Đang tìm…" },
     notFound: {
-        ja: "該当するご予約が見つかりませんでした。入力内容をご確認ください。",
+        ja: "予約が見つかりませんでした。入れた番号を見直してください。",
         en: "No reservation found. Please check your details.",
         zh: "未找到相关预约,请确认输入内容。",
         pt: "Nenhuma reserva encontrada. Verifique os dados.",
@@ -506,11 +573,11 @@ const TR = {
         th: "ไม่พบการจอง กรุณาตรวจสอบข้อมูล",
         vi: "Không tìm thấy lịch hẹn. Vui lòng kiểm tra lại thông tin.",
     },
-    cancelThis: { ja: "この予約を取り消す", en: "Cancel this reservation", zh: "取消此预约", pt: "Cancelar esta reserva", es: "Cancelar esta cita", th: "ยกเลิกการจองนี้", vi: "Hủy lịch hẹn này" },
-    cancelReasonLabel: { ja: "キャンセル理由(任意)", en: "Reason for cancellation (optional)", zh: "取消原因(可选)", pt: "Motivo do cancelamento (opcional)", es: "Motivo de la cancelación (opcional)", th: "เหตุผลในการยกเลิก (ไม่บังคับ)", vi: "Lý do hủy (không bắt buộc)" },
-    cancelReasonPh: { ja: "例: 体調不良のため", en: "e.g. feeling unwell", zh: "例: 身体不适", pt: "ex.: mal-estar", es: "ej.: malestar", th: "เช่น ไม่สบาย", vi: "Ví dụ: không khỏe" },
+    cancelThis: { ja: "この予約をキャンセルする", en: "Cancel this reservation", zh: "取消此预约", pt: "Cancelar esta reserva", es: "Cancelar esta cita", th: "ยกเลิกการจองนี้", vi: "Hủy lịch hẹn này" },
+    cancelReasonLabel: { ja: "キャンセルの理由(書かなくてもOK)", en: "Reason for cancellation (optional)", zh: "取消原因(可选)", pt: "Motivo do cancelamento (opcional)", es: "Motivo de la cancelación (opcional)", th: "เหตุผลในการยกเลิก (ไม่บังคับ)", vi: "Lý do hủy (không bắt buộc)" },
+    cancelReasonPh: { ja: "例: 体調がわるい", en: "e.g. feeling unwell", zh: "例: 身体不适", pt: "ex.: mal-estar", es: "ej.: malestar", th: "เช่น ไม่สบาย", vi: "Ví dụ: không khỏe" },
     cancelConfirm: {
-        ja: (d, tt) => `${d} ${tt} のご予約を取り消しますか?`,
+        ja: (d, tt) => `${d} ${tt} の予約をキャンセルしますか?`,
         en: (d, tt) => `Cancel your reservation on ${d} at ${tt}?`,
         zh: (d, tt) => `确定取消 ${d} ${tt} 的预约吗?`,
         pt: (d, tt) => `Cancelar sua reserva em ${d} às ${tt}?`,
@@ -519,7 +586,7 @@ const TR = {
         vi: (d, tt) => `Hủy lịch hẹn ngày ${d} lúc ${tt}?`,
     },
     gcalNote: {
-        ja: "ご来院の際は診察券をお持ちください。",
+        ja: "来るときは診察券を持ってきてください。",
         en: "Please bring your patient ID card.",
         zh: "就诊时请携带诊察券。",
         pt: "Traga seu cartão de paciente.",
@@ -532,7 +599,7 @@ const TR = {
     treatmentLabel: { ja: "施術内容", en: "Treatment", zh: "施术项目", pt: "Tratamento", es: "Tratamiento", th: "รายการ", vi: "Dịch vụ" },
     otherTab: { ja: "その他", en: "Other", zh: "其他", pt: "Outro", es: "Otro", th: "อื่นๆ", vi: "Khác" },
     otherPh: { ja: "例: くまとり", en: "e.g. under-eye treatment", zh: "例: 去黑眼圈", pt: "ex.: olheiras", es: "ej.: ojeras", th: "เช่น แก้ไขใต้ตา", vi: "Ví dụ: điều trị vùng dưới mắt" },
-    errTreatment: { ja: "ご希望の施術内容を入力してください", en: "Please enter the treatment you would like", zh: "请输入希望的施术项目", pt: "Informe o tratamento desejado", es: "Indique el tratamiento deseado", th: "กรุณากรอกรายการที่ต้องการ", vi: "Vui lòng nhập dịch vụ bạn muốn" },
+    errTreatment: { ja: "受けたい処置を書いてください", en: "Please enter the treatment you would like", zh: "请输入希望的施术项目", pt: "Informe o tratamento desejado", es: "Indique el tratamiento deseado", th: "กรุณากรอกรายการที่ต้องการ", vi: "Vui lòng nhập dịch vụ bạn muốn" },
     consultInfo: {
         ja: "この日は予約枠が埋まっています。「要相談」として送信いただくと、クリニックよりお電話で折り返しご連絡いたします。",
         en: "This date is fully booked. Submit an inquiry and the clinic will call you back.",
@@ -682,7 +749,7 @@ function receivedAtJa(ts) {
     return `${g("month")}/${g("day")} ${g("hour")}:${g("minute")}`;
 }
 // 管理画面の「カレンダー追加」に入れる詳細
-const bookingDetails = (b) => `予約番号: ${b.bookingNo}\n診察券番号: ${b.clinicId}\n携帯: ${b.phone}${b.email ? `\nメール: ${b.email}` : ""}${b.createdAt ? `\n予約受付: ${receivedAtJa(b.createdAt)}` : ""}\n(${CLINIC_NAME} 予約システムより)`;
+const bookingDetails = (b) => `予約番号: ${b.bookingNo}\n診察券番号: ${b.clinicId}\n携帯: ${b.phone}${b.email ? `\nメール: ${b.email}` : ""}${b.sedation === true ? "\n眠って処置: 希望あり" : b.sedation === false ? "\n眠って処置: 希望なし" : ""}${b.attendConfirmedAt ? `\n来院確認: ○ ${receivedAtJa(b.attendConfirmedAt)}` : ""}${b.createdAt ? `\n予約受付: ${receivedAtJa(b.createdAt)}` : ""}\n(${CLINIC_NAME} 予約システムより)`;
 // サーバーのエラーコード → 翻訳キー
 const ERR_KEY = {
     taken: "errTaken", slot_closed: "errTaken", too_soon: "errTaken",
@@ -694,7 +761,12 @@ const ERR_KEY = {
 // ================= メイン =================
 function App() {
     const [mode, setMode] = useState("patient"); // patient | login | admin
-    const [lang, setLang] = useState("ja");
+    const [lang, setLang] = useState(() => {
+        const l = ATT_PARAMS.get("l");
+        return LANGS.some((x) => x.code === l) ? l : "ja";
+    });
+    // メールの「来院します」リンクから開いたとき: idle → busy → done / error
+    const [att, setAtt] = useState({ st: "idle", date: "", time: "" });
     const t = (key, ...args) => {
         const v = (TR[key] && (TR[key][lang] || TR[key].ja)) || key;
         return typeof v === "function" ? v(...args) : v;
@@ -792,6 +864,7 @@ function App() {
                 bk[r.date].push({
                     id: r.id, date: r.date, time: r.time, name: r.name,
                     clinicId: r.clinic_id, phone: r.phone, email: r.email || "",
+                    sedation: r.sedation, attendConfirmedAt: r.attend_confirmed_at,
                     bookingNo: r.booking_no, lang: r.lang, createdAt: r.created_at,
                     treatment: r.treatment || "糸リフト",
                 });
@@ -820,6 +893,10 @@ function App() {
         setTimeout(() => setNotice(""), 3000);
     }
     // ================= 共通UI =================
+    // タップで発信できるクリニックの電話番号
+    const PhoneBtn = () => (React.createElement("a", { href: CLINIC_TEL_HREF, className: "block rounded-xl py-3 text-center active:opacity-70", style: { background: C.card, border: `1.5px solid ${C.primary}`, color: C.primary, fontWeight: 700, textDecoration: "none", fontSize: "1.05rem" } },
+        "\uD83D\uDCDE ", t("callUs"), React.createElement("br", null),
+        React.createElement("span", { style: { fontSize: "1.3rem", letterSpacing: "0.04em" } }, CLINIC_TEL)));
     const Btn = ({ children, onClick, variant = "primary", disabled, small }) => (React.createElement("button", { onClick: onClick, disabled: disabled, className: `rounded-xl transition-opacity active:opacity-70 ${small ? "px-3 py-1.5 text-xs rounded-lg" : "w-full py-3 text-base"}`, style: {
             fontFamily: fontBody, fontWeight: 600, letterSpacing: "0.03em",
             background: variant === "primary" ? C.primary :
@@ -847,7 +924,9 @@ function App() {
     const [pMonthIdx, setPMonthIdx] = useState(0);
     const [selDate, setSelDate] = useState(null);
     const [selTime, setSelTime] = useState(null);
-    const [form, setForm] = useState({ name: "", clinicId: "", phone: "", email: "" });
+    const [form, setForm] = useState({ name: "", clinicId: "", phone: "", email: "", email2: "" });
+    const [sedation, setSedation] = useState(null); // 眠った状態での処置を希望するか(true/false、未選択は null)
+    const [fullDate, setFullDate] = useState(null); // 満枠の日を押したとき(電話案内を出す)
     const [formErr, setFormErr] = useState({});
     const [bookingNo, setBookingNo] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -860,6 +939,39 @@ function App() {
     const [treatText, setTreatText] = useState("");
     const [menuErr, setMenuErr] = useState("");
     const [isConsult, setIsConsult] = useState(false);
+    // ブラウザの「戻る」で予約サイトから出てしまわないよう、画面遷移を履歴に積む
+    const navRef = useRef({ fromPop: false });
+    navRef.current.state = { selDate, selTime, treatCount: treatSel.length, pScreen };
+    useEffect(() => {
+        window.history.replaceState({ s: "landing" }, "");
+        const onPop = (e) => {
+            const cur = navRef.current.state;
+            let target = (e.state && e.state.s) || "landing";
+            // 予約完了後や、必要な選択が消えている画面には戻さない(二重予約・空の画面を防ぐ)
+            if (cur.pScreen === "done" || target === "done")
+                target = "landing";
+            if (["consent", "calendar"].includes(target) && cur.treatCount === 0)
+                target = "landing";
+            if (target === "time" && (!cur.selDate || cur.treatCount === 0))
+                target = "landing";
+            if (["form", "confirm"].includes(target) && (!cur.selDate || !cur.selTime || cur.treatCount === 0))
+                target = "landing";
+            navRef.current.fromPop = true;
+            setError("");
+            setPScreen(target);
+        };
+        window.addEventListener("popstate", onPop);
+        return () => window.removeEventListener("popstate", onPop);
+    }, []);
+    useEffect(() => {
+        if (navRef.current.fromPop) {
+            navRef.current.fromPop = false;
+            return;
+        }
+        if (!window.history.state || window.history.state.s !== pScreen)
+            window.history.pushState({ s: pScreen }, "");
+        window.scrollTo(0, 0);
+    }, [pScreen]);
     // 選択中の施術内容(表示用は言語対応、保存用は日本語/入力そのまま。「、」区切りで連結)
     const selTreats = () => TREATMENTS.filter((x) => treatSel.includes(x.key));
     const treatDisplay = () => {
@@ -903,9 +1015,7 @@ function App() {
         const e = {};
         const nm = form.name.trim();
         if (!nm)
-            e.name = t("errName");
-        else if (!NAME_KATAKANA.test(nm) && !NAME_LATIN.test(nm))
-            e.name = t("errNameFormat");
+            e.name = t("errName"); // 名前は自由入力(文字の種類は問わない)
         if (!form.clinicId.trim())
             e.clinicId = t("errId");
         else if (!isValidClinicId(normClinicId(form.clinicId)))
@@ -916,6 +1026,10 @@ function App() {
         // 予約はメール必須(確認・前日リマインドを送る)。満枠日の相談は電話で折り返すので不要
         if (!isConsult && !EMAIL_RE.test(form.email.trim()))
             e.email = t("errEmail");
+        else if (!isConsult && form.email.trim().toLowerCase() !== form.email2.trim().toLowerCase())
+            e.email2 = t("errEmail2"); // 打ち間違い防止のため2回入力
+        if (!isConsult && sedation === null)
+            e.sedation = t("errSed");
         setFormErr(e);
         return Object.keys(e).length === 0;
     }
@@ -934,6 +1048,7 @@ function App() {
                 p_consented: consentChecked,
                 p_risk_version: RISK_VERSION,
                 p_email: form.email.trim(),
+                p_sedation: sedation,
             });
             if (err && err.code === "PGRST202") {
                 // DB側がメール未対応(マイグレーション未適用)なら p_email 無しで再試行
@@ -1219,7 +1334,7 @@ function App() {
             React.createElement("h2", { className: "text-lg text-center mb-2", style: { fontFamily: fontDisplay, color: C.ink } }, t("consentTitle")),
             React.createElement("p", { className: "text-sm leading-relaxed mb-3", style: { color: C.sub } }, t("consentIntro")),
             React.createElement("div", { className: "rounded-2xl px-4 py-3 mb-4", style: { background: C.card, border: `1px solid ${C.line}` } }, RISKS.map((r, i) => (React.createElement("div", { key: i, className: "flex gap-2 py-1.5 text-sm leading-relaxed", style: { color: C.ink, borderTop: i === 0 ? "none" : `1px solid ${C.line}` } },
-                React.createElement("span", { style: { color: C.primary, fontWeight: 700, flexShrink: 0 } }, "•"),
+                React.createElement("span", { style: { flexShrink: 0, fontSize: "1.15rem", lineHeight: 1.4, width: "1.6rem", textAlign: "center" } }, r.icon || "•"),
                 React.createElement("span", null, r[lang] || r.ja))))),
             React.createElement("label", { className: "flex items-start gap-3 rounded-2xl px-4 py-3.5 mb-4", style: { background: consentChecked ? C.primarySoft : C.card, border: `2px solid ${consentChecked ? C.primary : C.line}`, cursor: "pointer" } },
                 React.createElement("input", { type: "checkbox", checked: consentChecked, onChange: (e) => setConsentChecked(e.target.checked), style: { width: "20px", height: "20px", marginTop: "1px", accentColor: C.primary, flexShrink: 0 } }),
@@ -1239,16 +1354,16 @@ function App() {
                 const consultable = st === "full";
                 const fullMark = lang === "ja" || lang === "zh" ? "満" : "✕";
                 return (React.createElement("button", { key: dateStr, disabled: !tappable && !consultable, onClick: () => {
+                        if (consultable) {
+                            // 満枠の日は電話で相談してもらう(予約できたと勘違いされないよう、入力フォームは出さない)
+                            setFullDate(dateStr);
+                            return;
+                        }
+                        setFullDate(null);
                         setSelDate(dateStr);
                         setSelTime(null);
-                        if (consultable) {
-                            setIsConsult(true);
-                            setPScreen("form");
-                        }
-                        else {
-                            setIsConsult(false);
-                            setPScreen("time");
-                        }
+                        setIsConsult(false);
+                        setPScreen("time");
                     }, className: "cal-day rounded-lg flex flex-col items-center justify-center py-1.5 active:opacity-60", style: {
                         background: tappable ? C.primarySoft : consultable ? C.goldSoft : "transparent",
                         border: tappable ? `1.5px solid ${C.primary}` : consultable ? `1.5px solid ${C.gold}` : "1.5px solid transparent",
@@ -1261,6 +1376,11 @@ function App() {
                 React.createElement("span", null, t("legendOpen")),
                 React.createElement("span", { style: { color: C.gold } }, t("legendFull")),
                 React.createElement("span", null, t("legendClosed"))),
+            fullDate && (React.createElement("div", { className: "rounded-2xl px-4 py-4 mt-4 text-center", style: { background: C.goldSoft, border: `2px solid ${C.gold}` } },
+                React.createElement("p", { className: "text-base mb-1", style: { color: C.ink, fontWeight: 700 } }, localDate(fullDate, lang)),
+                React.createElement("p", { className: "text-base mb-2", style: { color: C.gold, fontWeight: 700 } }, t("fullTitle")),
+                React.createElement("p", { className: "text-sm leading-relaxed mb-3", style: { color: C.ink } }, t("fullNote")),
+                PhoneBtn())),
             React.createElement("div", { className: "mt-5 flex flex-col gap-3" },
                 React.createElement(Btn, { variant: "outline", onClick: () => { setMyBookings(null); setPScreen("lookup"); } }, t("lookupLink")),
                 React.createElement(Btn, { variant: "ghost", onClick: () => setPScreen("menu") }, t("backToMenu")))));
@@ -1283,8 +1403,14 @@ function App() {
             { key: "name", label: t("fieldName"), ph: t("fieldNamePh"), type: "text", mode: "text" },
             { key: "clinicId", label: t("fieldId"), ph: t("fieldIdPh"), type: "text", mode: "text" },
             { key: "phone", label: t("fieldPhone"), ph: "09012345678", type: "tel", mode: "numeric" },
-            ...(isConsult ? [] : [{ key: "email", label: t("fieldEmail"), ph: "example@gmail.com", type: "email", mode: "email" }]),
+            ...(isConsult ? [] : [
+                { key: "email", label: t("fieldEmail"), ph: "example@gmail.com", type: "email", mode: "email", help: t("emailHelp") },
+                { key: "email2", label: t("fieldEmail2"), ph: "example@gmail.com", type: "email", mode: "email", noPaste: true },
+            ]),
         ];
+        fields[1].help = t("idHelp");
+        fields[1].mode = "numeric";
+        const sedBtn = (val, label) => React.createElement("button", { onClick: () => setSedation(val), className: "flex-1 py-3 rounded-xl text-lg active:opacity-70", style: { fontWeight: 700, cursor: "pointer", background: sedation === val ? C.primary : C.card, color: sedation === val ? "#fff" : C.ink, border: `2px solid ${sedation === val ? C.primary : formErr.sedation ? C.danger : C.line}` } }, sedation === val ? `✓ ${label}` : label);
         return (React.createElement("div", null,
             React.createElement(StepDots, { step: 3 }),
             React.createElement("div", { className: "text-center mb-4" },
@@ -1296,8 +1422,15 @@ function App() {
                 React.createElement("p", { className: "text-sm leading-relaxed", style: { color: C.gold, fontWeight: 600 } }, t("consultInfo")))),
             React.createElement("div", { className: "flex flex-col gap-4" }, fields.map((f) => (React.createElement("div", { key: f.key },
                 React.createElement("label", { className: "text-sm block mb-1.5", style: { color: C.ink, fontWeight: 600 } }, f.label),
-                React.createElement("input", { type: f.type, inputMode: f.mode, value: form[f.key], onChange: (e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value })), placeholder: f.ph, className: "w-full px-4 py-3 rounded-xl text-base outline-none box-border", style: { fontFamily: fontBody, background: C.card, color: C.ink, border: `1.5px solid ${formErr[f.key] ? C.danger : C.line}`, boxSizing: "border-box" } }),
-                formErr[f.key] && React.createElement("p", { className: "text-xs mt-1", style: { color: C.danger } }, formErr[f.key]))))),
+                React.createElement("input", { type: f.type, inputMode: f.mode, value: form[f.key], onChange: (e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value })), onPaste: f.noPaste ? (e) => e.preventDefault() : undefined, autoComplete: f.noPaste ? "off" : undefined, placeholder: f.ph, className: "w-full px-4 py-3 rounded-xl text-base outline-none box-border", style: { fontFamily: fontBody, background: C.card, color: C.ink, border: `1.5px solid ${formErr[f.key] ? C.danger : C.line}`, boxSizing: "border-box" } }),
+                f.help && React.createElement("p", { className: "text-xs mt-1 leading-relaxed", style: { color: C.sub } }, f.help),
+                formErr[f.key] && React.createElement("p", { className: "text-sm mt-1", style: { color: C.danger, fontWeight: 700 } }, formErr[f.key]))))),
+            !isConsult && (React.createElement("div", { className: "rounded-2xl px-4 py-4 mt-5", style: { background: C.card, border: `1.5px solid ${formErr.sedation ? C.danger : C.line}` } },
+                React.createElement("p", { className: "text-base mb-3", style: { color: C.ink, fontWeight: 700 } }, "\uD83D\uDCA4 ", t("sedQ")),
+                React.createElement("div", { className: "flex gap-3" }, sedBtn(true, t("sedYes")), sedBtn(false, t("sedNo"))),
+                formErr.sedation && React.createElement("p", { className: "text-sm mt-2", style: { color: C.danger, fontWeight: 700 } }, formErr.sedation),
+                sedation === true && React.createElement("p", { className: "text-sm mt-3 leading-relaxed rounded-lg px-3 py-2", style: { background: C.dangerSoft, color: C.danger, fontWeight: 700 } }, "\uD83C\uDF7D ", t("sedFast")),
+                React.createElement("p", { className: "text-sm mt-3 leading-relaxed", style: { color: C.sub } }, t("sedNote")))),
             React.createElement("div", { className: "mt-6 flex flex-col gap-3" },
                 React.createElement(Btn, { onClick: () => { if (validateForm())
                         setPScreen("confirm"); } }, t("toConfirm")),
@@ -1310,7 +1443,7 @@ function App() {
             [t("rowName"), form.name],
             [t("rowId"), normClinicId(form.clinicId)],
             [t("rowPhone"), form.phone],
-            ...(isConsult ? [] : [[t("rowEmail"), form.email.trim()]]),
+            ...(isConsult ? [] : [[t("rowEmail"), form.email.trim()], [t("rowSed"), sedation ? t("sedYes") : t("sedNo")]]),
         ];
         return (React.createElement("div", null,
             React.createElement(StepDots, { step: 4 }),
@@ -1326,7 +1459,10 @@ function App() {
     }
     function PatientDone() {
         const resetAll = () => {
-            setForm({ name: "", clinicId: "", phone: "", email: "" });
+            setForm({ name: "", clinicId: "", phone: "", email: "", email2: "" });
+            setSedation(null);
+            setFullDate(null);
+            setConsentChecked(false);
             setSelDate(null);
             setSelTime(null);
             setTreatSel([]);
@@ -1358,22 +1494,24 @@ function App() {
                 selTime,
                 "\u301C ",
                 treatDisplay()),
-            React.createElement("div", { className: "rounded-2xl py-4 mb-5", style: { background: C.card, border: `1px solid ${C.line}` } },
-                React.createElement("p", { className: "text-xs mb-1", style: { color: C.sub } }, t("bookingNoLabel")),
-                React.createElement("p", { className: "text-2xl tracking-widest", style: { fontFamily: fontDisplay, color: C.primary, fontWeight: 700 } }, bookingNo)),
+            React.createElement("p", { className: "text-sm mb-5 leading-relaxed", style: { color: C.ink } }, "\u2709 ", t("doneMail")),
+            React.createElement("div", { className: "rounded-xl px-4 py-3 mb-3 text-left", style: { background: C.card, border: `2px solid ${C.primary}` } },
+                React.createElement("p", { className: "text-base mb-1", style: { color: C.primary, fontWeight: 700 } }, "\uD83D\uDCDE ", t("callTitleD", localDate(prevOpenDay(selDate), lang))),
+                React.createElement("p", { className: "text-sm leading-relaxed mb-3", style: { color: C.ink, fontWeight: 600 } }, t("callBody")),
+                PhoneBtn()),
+            sedation === true && (React.createElement("div", { className: "rounded-xl px-4 py-3 mb-3 text-left", style: { background: C.dangerSoft, border: `1.5px solid ${C.danger}` } },
+                React.createElement("p", { className: "text-sm leading-relaxed", style: { color: C.danger, fontWeight: 700 } }, "\uD83C\uDF7D ", t("sedFast")),
+                React.createElement("p", { className: "text-sm leading-relaxed mt-1", style: { color: C.ink } }, t("sedNote")))),
+            React.createElement("div", { className: "rounded-xl px-4 py-3 mb-5 text-left", style: { background: C.goldSoft, border: `1px solid ${C.gold}` } },
+                React.createElement("p", { className: "text-sm leading-relaxed", style: { color: C.gold, fontWeight: 600 } }, t("cancelNote"))),
             React.createElement("div", { className: "flex flex-col gap-3" },
                 React.createElement("a", { href: gcalUrl({
                         date: selDate, time: selTime,
                         title: `${CLINIC_NAME} ${treatDisplay()}`,
-                        details: `${t("bookingNoLabel")}: ${bookingNo}\n${t("gcalNote")}`,
+                        details: t("gcalNote"),
                     }), target: "_blank", rel: "noopener noreferrer", className: "block", style: { textDecoration: "none" } },
                     React.createElement(Btn, { onClick: () => { } }, t("addCal"))),
-                React.createElement(Btn, { variant: "outline", onClick: resetAll }, t("backToTop"))),
-            React.createElement("div", { className: "rounded-xl px-4 py-3 mt-5 text-left", style: { background: C.card, border: `1.5px solid ${C.primary}` } },
-                React.createElement("p", { className: "text-base mb-1", style: { color: C.primary, fontWeight: 700 } }, "\uD83D\uDCDE ", t("callNoteTitle")),
-                React.createElement("p", { className: "text-sm leading-relaxed", style: { color: C.ink, fontWeight: 600 } }, t("callNote"))),
-            React.createElement("div", { className: "rounded-xl px-4 py-3 mt-3 text-left", style: { background: C.goldSoft, border: `1px solid ${C.gold}` } },
-                React.createElement("p", { className: "text-sm leading-relaxed", style: { color: C.gold, fontWeight: 600 } }, t("cancelNote")))));
+                React.createElement(Btn, { variant: "outline", onClick: resetAll }, t("backToTop")))));
     }
     function PatientLookup() {
         return (React.createElement("div", null,
@@ -1418,7 +1556,7 @@ function App() {
     const [consults, setConsults] = useState([]);
     const [blocklist, setBlocklist] = useState([]);
     // 管理画面からの予約追加(枠・満枠・休枠の制限なし)
-    const emptyAddForm = () => ({ date: aSelDate || fmtDate(new Date()), time: "13:00", treats: [], other: "", name: "", clinicId: "", phone: "", email: "", lang: "ja" });
+    const emptyAddForm = () => ({ date: aSelDate || fmtDate(new Date()), time: "13:00", treats: [], other: "", name: "", clinicId: "", phone: "", email: "", lang: "ja", sedation: null });
     const [addForm, setAddForm] = useState(emptyAddForm);
     const [addBusy, setAddBusy] = useState(false);
     const setAdd = (k, v) => setAddForm((prev) => ({ ...prev, [k]: v }));
@@ -1459,7 +1597,7 @@ function App() {
                 date: f.date, time: f.time, name: f.name.trim(),
                 clinic_id: normClinicId(f.clinicId) || f.clinicId.trim(),
                 phone: f.phone.replace(/[^0-9]/g, ""),
-                email: email || null, lang: f.lang, treatment, booking_no: no,
+                email: email || null, lang: f.lang, treatment, booking_no: no, sedation: f.sedation,
             });
             if (err)
                 throw err;
@@ -1715,7 +1853,10 @@ function App() {
                         React.createElement("br", null),
                         "予約番号: ",
                         booked.bookingNo,
-                        booked.createdAt && ` / 受付 ${receivedAtJa(booked.createdAt)}`)),
+                        booked.createdAt && ` / 受付 ${receivedAtJa(booked.createdAt)}`),
+                    (booked.attendConfirmedAt || booked.sedation === true) && React.createElement("p", { className: "text-xs mt-1", style: { fontWeight: 700 } },
+                            booked.attendConfirmedAt && React.createElement("span", { className: "px-1.5 py-0.5 rounded mr-1", style: { background: "#DDF3E4", color: "#1E7A3E" } }, "○ 来院確認ずみ"),
+                            booked.sedation === true && React.createElement("span", { className: "px-1.5 py-0.5 rounded", style: { background: C.goldSoft, color: C.gold } }, "💤 眠り希望"))),
                 React.createElement("div", { className: "flex gap-2 mb-3" },
                     React.createElement("a", { href: gcalUrl({
                             date: booked.date, time: booked.time,
@@ -1834,6 +1975,11 @@ function App() {
             React.createElement("div", null, label("診察券番号"), text("clinicId", "12345")),
             React.createElement("div", null, label("電話番号"), text("phone", "09012345678", "tel", "numeric")),
             React.createElement("div", null, label("メールアドレス(任意・確認とリマインドが届きます)"), text("email", "example@gmail.com", "email", "email")),
+            React.createElement("div", null, label("眠った状態での処置の希望"),
+                React.createElement("div", { className: "flex flex-wrap gap-2" }, [[null, "未確認"], [true, "希望あり"], [false, "希望なし"]].map(([v, lb]) => {
+                    const on = f.sedation === v;
+                    return React.createElement("button", { key: String(v), onClick: () => setAdd("sedation", v), className: "px-3 py-2 rounded-lg text-sm", style: { fontWeight: 700, cursor: "pointer", background: on ? C.primary : C.card, color: on ? "#fff" : C.ink, border: `1.5px solid ${on ? C.primary : C.line}` } }, lb);
+                }))),
             React.createElement("div", null, label("患者さんへ送るメールの言語"),
                 React.createElement("div", { className: "flex flex-wrap gap-2" }, LANGS.map((l) => {
                     const on = f.lang === l.code;
@@ -1861,21 +2007,26 @@ function App() {
         const futureList = all.filter((b) => b.date >= today).sort(byDateTime);
         const pastList = all.filter((b) => b.date < today).sort((a, b) => -byDateTime(a, b));
         const list = aListMode === "future" ? futureList : pastList;
-        const tomorrowList = futureList.filter((b) => b.date === tomorrow);
+        // 確認の電話は「予約日の前の診療日」にかける(日曜・祝日・休診期間をはさむ場合はその前)
+        const tomorrowList = futureList.filter((b) => prevOpenDay(b.date) === today);
         return (React.createElement("div", null,
             React.createElement("div", { className: "rounded-2xl p-4 mb-4", style: { background: C.dark } },
-                React.createElement("p", { className: "text-xs tracking-widest mb-2", style: { color: C.aqua, letterSpacing: "0.2em" } }, "\u660E\u65E5\u306E\u4E88\u7D04 \u2014 \u524D\u65E5\u78BA\u8A8D\u306E\u304A\u96FB\u8A71\u3092"),
-                tomorrowList.length === 0 ? (React.createElement("p", { className: "text-sm", style: { color: "#7FA6B8" } }, "\u660E\u65E5\u306E\u4E88\u7D04\u306F\u3042\u308A\u307E\u305B\u3093")) : (tomorrowList.map((b) => (React.createElement("div", { key: b.id || `${b.date}-${b.time}` },
-                    React.createElement("p", { className: "text-base", style: { color: "#F2F8FA", fontWeight: 700 } },
+                React.createElement("p", { className: "text-xs tracking-widest mb-2", style: { color: C.aqua, letterSpacing: "0.2em" } }, "今日、確認の電話をする予約(○ = メールで来院確認ずみ)"),
+                tomorrowList.length === 0 ? (React.createElement("p", { className: "text-sm", style: { color: "#7FA6B8" } }, "今日電話する予約はありません")) : (tomorrowList.map((b) => (React.createElement("div", { key: b.id || `${b.date}-${b.time}` },
+                    React.createElement("p", { className: "text-base", style: { color: b.attendConfirmedAt ? "#8FE3B0" : "#F2F8FA", fontWeight: 700 } },
+                        b.attendConfirmedAt ? "○ " : "",
+                        jp(b.date),
+                        " ",
                         b.time,
                         "\u301C ",
                         b.name,
                         " \u69D8"),
-                    React.createElement("p", { className: "text-xs mt-0.5", style: { color: "#7FA6B8" } },
+                    React.createElement("p", { className: "text-xs mt-0.5 mb-2", style: { color: "#7FA6B8" } },
                         "\uD83D\uDCDE ",
                         b.phone,
                         " / \u8A3A\u5BDF\u5238 ",
-                        b.clinicId)))))),
+                        b.clinicId,
+                        b.sedation === true && " / 💤眠り希望")))))),
             consults.length > 0 && (React.createElement("div", { className: "rounded-2xl p-4 mb-4", style: { background: C.card, border: `1.5px solid ${C.gold}` } },
                 React.createElement("p", { className: "text-sm mb-3", style: { color: C.gold, fontWeight: 700 } },
                     "\uD83D\uDCDE \u8981\u76F8\u8AC7(",
@@ -1922,7 +2073,10 @@ function App() {
                             b.email && ` / ✉ ${b.email}`,
                             " / No. ",
                             b.bookingNo,
-                            b.createdAt && ` / 受付 ${receivedAtJa(b.createdAt)}`)),
+                            b.createdAt && ` / 受付 ${receivedAtJa(b.createdAt)}`),
+                        (b.attendConfirmedAt || b.sedation === true) && React.createElement("p", { className: "text-xs mt-1", style: { fontWeight: 700 } },
+                            b.attendConfirmedAt && React.createElement("span", { className: "px-1.5 py-0.5 rounded mr-1", style: { background: "#DDF3E4", color: "#1E7A3E" } }, "○ 来院確認ずみ"),
+                            b.sedation === true && React.createElement("span", { className: "px-1.5 py-0.5 rounded", style: { background: C.goldSoft, color: C.gold } }, "💤 眠り希望"))),
                     aListMode === "future" && b.date === tomorrow && (React.createElement("span", { className: "text-xs px-2 py-1 rounded-full shrink-0", style: { background: C.goldSoft, color: C.gold, fontWeight: 700 } }, "\u660E\u65E5")),
                     aListMode === "past" && (React.createElement("span", { className: "text-xs px-2 py-1 rounded-full shrink-0", style: { background: C.bgAdmin, color: C.sub, fontWeight: 600 } }, "\u6E08"))),
                 React.createElement("div", { className: "flex justify-end mb-2" }, isBlocked(b) ? (React.createElement("span", { className: "text-xs px-2 py-1 rounded-full", style: { background: C.dangerSoft, color: C.danger, fontWeight: 700 } }, "\u26D4 \u30D6\u30ED\u30C3\u30AF\u4E2D")) : (React.createElement(Btn, { small: true, variant: "outline", onClick: () => blockPerson(b) }, "\u26D4 \u4EE5\u5F8C\u306EWEB\u4E88\u7D04\u3092\u30D6\u30ED\u30C3\u30AF"))),
@@ -1968,6 +2122,37 @@ function App() {
                 error && (React.createElement("div", { className: "rounded-xl px-4 py-2.5 mb-3 text-sm", style: { background: C.dangerSoft, color: C.danger, fontWeight: 600 } }, error)),
                 loading ? (React.createElement("p", { className: "text-center py-10 text-sm", style: { color: C.sub } }, "\u8AAD\u307F\u8FBC\u3093\u3067\u3044\u307E\u3059\u2026")) : aTab === "slots" ? AdminSlots() : aTab === "block" ? AdminBlocklist() : aTab === "add" ? AdminAdd() : AdminBookings())));
     }
+    if (ATT_TOKEN && mode === "patient") {
+        const doAttend = async () => {
+            setAtt({ st: "busy" });
+            try {
+                const { data, error: err } = await sb.rpc("confirm_attendance", { p_token: ATT_TOKEN });
+                if (err || !data || !data.ok)
+                    throw err || new Error("not_found");
+                if (LANGS.some((x) => x.code === data.lang) && !ATT_PARAMS.get("l"))
+                    setLang(data.lang);
+                setAtt({ st: "done", date: data.date, time: String(data.time || "").slice(0, 5) });
+            }
+            catch (e) {
+                console.error(e);
+                setAtt({ st: "error" });
+            }
+        };
+        return (React.createElement("div", { className: "min-h-screen flex flex-col", style: { background: C.bg, fontFamily: fontBody } },
+            React.createElement("header", { className: "text-center", style: { padding: "44px 16px 12px" } },
+                React.createElement("h1", { className: "text-2xl", style: { fontFamily: fontDisplay, color: C.ink, fontWeight: 600, margin: 0 } }, CLINIC_NAME),
+                React.createElement("p", { className: "text-base", style: { color: C.sub, marginTop: "8px" } }, t("attTitle"))),
+            React.createElement("main", { className: "max-w-md mx-auto w-full text-center", style: { boxSizing: "border-box", padding: "8px 20px 40px" } },
+                att.st === "done" ? (React.createElement("div", null,
+                    React.createElement("div", { className: "w-14 h-14 rounded-full mx-auto flex items-center justify-center", style: { background: C.primarySoft, margin: "16px auto" } },
+                        React.createElement("span", { style: { color: C.primary, fontSize: "28px", fontWeight: 700 } }, "\u2713")),
+                    React.createElement("p", { className: "text-xl", style: { color: C.ink, fontWeight: 700, marginBottom: "8px" } }, t("attDone")),
+                    React.createElement("p", { className: "text-base", style: { color: C.ink } }, t("attWait", localDate(att.date, lang), att.time)))) : (React.createElement("div", null,
+                    React.createElement("p", { className: "text-base leading-relaxed", style: { color: C.ink, margin: "16px 0 24px" } }, t("attLead")),
+                    React.createElement("button", { onClick: doAttend, disabled: att.st === "busy", className: "w-full rounded-2xl active:opacity-70", style: { background: C.primary, color: "#fff", fontWeight: 700, fontSize: "1.5rem", padding: "22px 8px", border: "none", cursor: "pointer", opacity: att.st === "busy" ? 0.6 : 1, fontFamily: fontBody } }, att.st === "busy" ? t("attSending") : `\u25CB ${t("attBtn")}`),
+                    att.st === "error" && React.createElement("p", { className: "text-base", style: { color: C.danger, fontWeight: 700, marginTop: "20px" } }, t("attErr")))),
+                React.createElement("div", { style: { marginTop: "36px" } }, PhoneBtn()))));
+    }
     if (pScreen === "landing")
         return Landing();
     return (React.createElement("div", { className: "min-h-screen flex flex-col", style: { background: C.bg, fontFamily: fontBody } },
@@ -1986,7 +2171,9 @@ function App() {
             pScreen === "form" && PatientForm(),
             pScreen === "confirm" && PatientConfirm(),
             pScreen === "done" && PatientDone(),
-            pScreen === "lookup" && PatientLookup())))));
+            pScreen === "lookup" && PatientLookup()))),
+        React.createElement("footer", { className: "text-center pb-8 px-4" },
+            React.createElement("a", { href: CLINIC_TEL_HREF, className: "text-sm", style: { color: C.sub, textDecoration: "none", fontWeight: 600 } }, "\uD83D\uDCDE ", CLINIC_NAME, " ", CLINIC_TEL))));
 }
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App, null));
 
