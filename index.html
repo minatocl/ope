@@ -1834,8 +1834,12 @@ function App() {
             React.createElement("div", null, label("診察券番号"), text("clinicId", "12345")),
             React.createElement("div", null, label("電話番号"), text("phone", "09012345678", "tel", "numeric")),
             React.createElement("div", null, label("メールアドレス(任意・確認とリマインドが届きます)"), text("email", "example@gmail.com", "email", "email")),
-            React.createElement("div", null, label("メールの言語"),
-                React.createElement("select", { value: f.lang, onChange: (e) => setAdd("lang", e.target.value), className: "w-full px-3 py-3 rounded-xl text-base outline-none", style: inputStyle }, LANGS.map((l) => React.createElement("option", { key: l.code, value: l.code }, l.label)))),
+            React.createElement("div", null, label("患者さんへ送るメールの言語"),
+                React.createElement("div", { className: "flex flex-wrap gap-2" }, LANGS.map((l) => {
+                    const on = f.lang === l.code;
+                    return React.createElement("button", { key: l.code, onClick: () => setAdd("lang", l.code), className: "px-3 py-2 rounded-lg text-sm", style: { fontWeight: 700, cursor: "pointer", background: on ? C.primary : C.card, color: on ? "#fff" : C.ink, border: `1.5px solid ${on ? C.primary : C.line}` } }, on ? `✓ ${l.label}` : l.label);
+                })),
+                React.createElement("p", { className: "text-xs mt-1.5", style: { color: C.sub } }, "予約確認・前日リマインド・取り消しのメールが、選んだ言語で届きます。")),
             React.createElement(Btn, { onClick: adminAddBooking, disabled: addBusy }, addBusy ? "\u4FDD\u5B58\u4E2D\u2026" : "\u3053\u306E\u5185\u5BB9\u3067\u4E88\u7D04\u3092\u5165\u308C\u308B")));
     }
     function AdminBlocklist() {
