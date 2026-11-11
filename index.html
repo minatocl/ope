@@ -2106,7 +2106,7 @@ function App() {
                         b.calledAt ? ` / 電話で確認 ${receivedAtJa(b.calledAt)}` : b.attendConfirmedAt ? ` / メールで来院確認 ${receivedAtJa(b.attendConfirmedAt)}` : b.callTries > 0 ? ` / 出なかった ${b.callTries}回` : ""),
                     !(b.attendConfirmedAt || b.calledAt) && React.createElement("div", { className: "flex gap-2 mb-3" },
                         React.createElement("button", { onClick: () => markCalled(b, "ok"), className: "flex-1 py-2 rounded-lg text-sm", style: { background: "#2E9E5B", color: "#fff", fontWeight: 700, border: "none", cursor: "pointer" } }, "\u25CB \u8A71\u305B\u305F"),
-                        React.createElement("button", { onClick: () => markCalled(b, "noanswer"), className: "flex-1 py-2 rounded-lg text-sm", style: { background: "#1A3A50", color: "#C2D6E0", fontWeight: 700, border: "none", cursor: "pointer" } }, "\u51FA\u306A\u304B\u3063\u305F")))))),
+                        React.createElement("button", { onClick: () => markCalled(b, "noanswer"), className: "flex-1 py-2 rounded-lg text-sm", style: { background: "#1A3A50", color: "#C2D6E0", fontWeight: 700, border: "none", cursor: "pointer" } }, "\u51FA\u306A\u304B\u3063\u305F"))))))),
             consults.length > 0 && (React.createElement("div", { className: "rounded-2xl p-4 mb-4", style: { background: C.card, border: `1.5px solid ${C.gold}` } },
                 React.createElement("p", { className: "text-sm mb-3", style: { color: C.gold, fontWeight: 700 } },
                     "\uD83D\uDCDE \u8981\u76F8\u8AC7(",
