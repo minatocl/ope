@@ -761,7 +761,8 @@ const ERR_KEY = {
 };
 // ================= メイン =================
 function App() {
-    const [mode, setMode] = useState("patient"); // patient | login | admin
+    // ?staff=1 で開くとスタッフログイン画面から始める(受付PCの呼び出し画面のボタン用。ログイン済みならそのまま管理画面へ)
+    const [mode, setMode] = useState(ATT_PARAMS.get("staff") ? "login" : "patient"); // patient | login | admin
     const [lang, setLang] = useState(() => {
         const l = ATT_PARAMS.get("l");
         return LANGS.some((x) => x.code === l) ? l : "ja";
