@@ -452,6 +452,7 @@ const TR = {
     fieldEmail2: { ja: "メールアドレス(もう一度)", en: "Email (again)", zh: "电子邮箱(再输入一次)", pt: "E-mail (de novo)", es: "Correo (otra vez)", th: "อีเมล (อีกครั้ง)", vi: "Email (nhập lại)" },
     errEmail2: { ja: "2つのメールアドレスがちがいます。もう一度見てください", en: "The two email addresses do not match", zh: "两次输入的邮箱不一致", pt: "Os dois e-mails não são iguais", es: "Los dos correos no coinciden", th: "อีเมลทั้งสองไม่ตรงกัน", vi: "Hai email không giống nhau" },
     emailHelp: { ja: "予約の確認メールが届きます。届かないときは「迷惑メール」も見てください。", en: "We will send a confirmation email. If it does not arrive, check your spam folder.", zh: "我们会发送确认邮件。如未收到,请查看垃圾邮件箱。", pt: "Enviaremos um e-mail de confirmação. Se não chegar, veja a caixa de spam.", es: "Le enviaremos un correo de confirmación. Si no llega, revise el spam.", th: "เราจะส่งอีเมลยืนยัน หากไม่ได้รับ กรุณาดูในกล่องสแปม", vi: "Chúng tôi sẽ gửi email xác nhận. Nếu không nhận được, hãy xem hộp thư rác." },
+    idSample: { ja: "見本: 赤い枠の中の数字が診察券番号です(「ID」のあとの数字だけ入れてください)", en: "Sample: the number in the red box is your patient ID (enter only the digits after \"ID\").", zh: "示例: 红框内的数字就是诊察券号码(只需输入「ID」后面的数字)", pt: "Exemplo: o número no quadro vermelho é o seu nº de paciente (digite só os números depois de \"ID\").", es: "Ejemplo: el número en el recuadro rojo es su nº de paciente (escriba solo los dígitos después de \"ID\").", th: "ตัวอย่าง: ตัวเลขในกรอบสีแดงคือหมายเลขบัตรผู้ป่วย (กรอกเฉพาะตัวเลขหลัง \"ID\")", vi: "Mẫu: số trong khung đỏ là số thẻ bệnh nhân (chỉ nhập các chữ số sau \"ID\")." },
     idHelp: { ja: "診察券に書いてある数字です。わからないときは、受付か電話で聞いてください。", en: "This is the number on your patient card. If you do not know it, ask at reception or call us.", zh: "诊察券上印的号码。如不清楚,请向前台或来电确认。", pt: "É o número do seu cartão de paciente. Se não souber, pergunte na recepção ou ligue.", es: "Es el número de su tarjeta de paciente. Si no lo sabe, pregunte en recepción o llame.", th: "คือหมายเลขบนบัตรผู้ป่วย หากไม่ทราบ กรุณาสอบถามที่แผนกต้อนรับหรือโทรหาเรา", vi: "Là số in trên thẻ bệnh nhân. Nếu không biết, hãy hỏi quầy lễ tân hoặc gọi điện." },
     callUs: { ja: "クリニックに電話する", en: "Call the clinic", zh: "致电诊所", pt: "Ligar para a clínica", es: "Llamar a la clínica", th: "โทรหาคลินิก", vi: "Gọi phòng khám" },
     sedQ: { ja: "眠った状態で処置を受けたいですか？", en: "Do you want to be asleep (sedated) during the treatment?", zh: "您希望在睡眠(镇静)状态下接受处置吗?", pt: "Quer fazer o procedimento dormindo (com sedação)?", es: "¿Desea hacer el procedimiento dormido (con sedación)?", th: "ต้องการทำหัตถการขณะหลับ (ใช้ยาระงับความรู้สึก) หรือไม่?", vi: "Bạn có muốn ngủ (an thần) khi làm thủ thuật không?" },
@@ -1409,6 +1410,10 @@ function App() {
             React.createElement("div", { className: "mt-5" },
                 React.createElement(Btn, { variant: "ghost", onClick: () => setPScreen("calendar") }, t("backToDate")))));
     }
+    // 診察券の見本(assets/card-sample.svg はダミー情報。番号の場所を赤枠で示す)
+    const cardSample = () => React.createElement("div", { className: "mt-2 flex items-center gap-3 rounded-xl px-3 py-2", style: { background: C.card, border: `1.5px solid ${C.line}` } },
+        React.createElement("img", { src: "assets/card-sample.svg", alt: "", style: { width: "104px", height: "auto", flexShrink: 0, borderRadius: "8px", display: "block" } }),
+        React.createElement("p", { className: "text-xs leading-relaxed", style: { color: C.ink, margin: 0 } }, t("idSample")));
     function PatientForm() {
         const fields = [
             { key: "name", label: t("fieldName"), ph: t("fieldNamePh"), type: "text", mode: "text" },
@@ -1435,6 +1440,7 @@ function App() {
                 React.createElement("label", { className: "text-sm block mb-1.5", style: { color: C.ink, fontWeight: 600 } }, f.label),
                 React.createElement("input", { type: f.type, inputMode: f.mode, value: form[f.key], onChange: (e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value })), onPaste: f.noPaste ? (e) => e.preventDefault() : undefined, autoComplete: f.noPaste ? "off" : undefined, placeholder: f.ph, className: "w-full px-4 py-3 rounded-xl text-base outline-none box-border", style: { fontFamily: fontBody, background: C.card, color: C.ink, border: `1.5px solid ${formErr[f.key] ? C.danger : C.line}`, boxSizing: "border-box" } }),
                 f.help && React.createElement("p", { className: "text-xs mt-1 leading-relaxed", style: { color: C.sub } }, f.help),
+                f.key === "clinicId" && cardSample(),
                 formErr[f.key] && React.createElement("p", { className: "text-sm mt-1", style: { color: C.danger, fontWeight: 700 } }, formErr[f.key]))))),
             !isConsult && (React.createElement("div", { className: "rounded-2xl px-4 py-4 mt-5", style: { background: C.card, border: `1.5px solid ${formErr.sedation ? C.danger : C.line}` } },
                 React.createElement("p", { className: "text-base mb-3", style: { color: C.ink, fontWeight: 700 } }, "\uD83D\uDCA4 ", t("sedQ")),
@@ -1532,7 +1538,8 @@ function App() {
             React.createElement("div", { className: "flex flex-col gap-4" },
                 React.createElement("div", null,
                     React.createElement("label", { className: "text-sm block mb-1.5", style: { color: C.ink, fontWeight: 600 } }, t("fieldId")),
-                    React.createElement("input", { value: lookupForm.clinicId, onChange: (e) => setLookupForm((prev) => ({ ...prev, clinicId: e.target.value })), className: "w-full px-4 py-3 rounded-xl text-base outline-none", style: { background: C.card, border: `1.5px solid ${C.line}`, color: C.ink, boxSizing: "border-box", fontFamily: fontBody } })),
+                    React.createElement("input", { value: lookupForm.clinicId, onChange: (e) => setLookupForm((prev) => ({ ...prev, clinicId: e.target.value })), className: "w-full px-4 py-3 rounded-xl text-base outline-none", style: { background: C.card, border: `1.5px solid ${C.line}`, color: C.ink, boxSizing: "border-box", fontFamily: fontBody } }),
+                    cardSample()),
                 React.createElement("div", null,
                     React.createElement("label", { className: "text-sm block mb-1.5", style: { color: C.ink, fontWeight: 600 } }, t("fieldPhone")),
                     React.createElement("input", { type: "tel", inputMode: "numeric", value: lookupForm.phone, onChange: (e) => setLookupForm((prev) => ({ ...prev, phone: e.target.value })), className: "w-full px-4 py-3 rounded-xl text-base outline-none", style: { background: C.card, border: `1.5px solid ${C.line}`, color: C.ink, boxSizing: "border-box", fontFamily: fontBody } })),
