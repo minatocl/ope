@@ -1706,7 +1706,7 @@ function App() {
         const em = (b.email || "").toLowerCase();
         return blocklist.some((x) => (x.phone && x.phone === ph) || (x.email && x.email === em) || (x.clinic_id && x.clinic_id === String(b.clinicId || "").trim()));
     };
-    // 確認電話の結果を記録(受付PCの call-today.html と同じ意味。カレンダーの説明欄に記録。題名の ○ はメールの「来院します」だけ)
+    // 確認電話の結果を記録(受付PCの call-today.html と同じ意味。○ はカレンダーの題名にも反映される)
     async function markCalled(b, result) {
         const patch = result === "ok" ? { called_at: new Date().toISOString() } : { call_tries: (b.callTries || 0) + 1, last_try_at: new Date().toISOString() };
         const { error: err } = await sb.from("bookings").update(patch).eq("id", b.id);

@@ -6,7 +6,7 @@
 <title>今日電話する人 — みなとクリニック 処置予約</title>
 <!--
   受付PC用パネル。予約日の「前の診療日」が今日の処置予約を一覧し、確認の電話ができたら「○ 話せた」を押す。
-  メールの「来院します」で確認ずみの人は最初から ○ が付く。Google カレンダーの題名に ○ が付くのはメールの「来院します」だけ(電話確認は説明欄に記録)。
+  メールの「来院します」で確認ずみの人は最初から ○ が付く。○ は Google カレンダーの題名にも1分以内に反映される。
   データ取得は Supabase の get_call_list / mark_called(パスコード必須)。パスコードは最初に1回入れると保存される。
   受付ツール(呼び出し/メモ/ゴミ出し)に iframe で貼り込める: <iframe src="https://minatocl.github.io/ope/call-today.html" ...>
 -->
@@ -114,7 +114,7 @@ async function load() {
     schedule(); return;
   }
   const confirmed = rows.filter((r) => r.attend_confirmed_at || r.called_at).length;
-  main.innerHTML = `<p style="color:var(--sub);font-size:14px;margin:4px 0 12px">${rows.length} 件中 ${confirmed} 件が確認ずみ。電話で話せたら「○ 話せた」を押してください(カレンダーの説明欄に記録されます。題名の ○ はメールの「来院します」だけ)。</p>` +
+  main.innerHTML = `<p style="color:var(--sub);font-size:14px;margin:4px 0 12px">${rows.length} 件中 ${confirmed} 件が確認ずみ。電話で話せたら「○ 話せた」を押してください(カレンダーの題名に ○ が付きます)。</p>` +
     rows.map((r) => {
       const ok = r.attend_confirmed_at || r.called_at;
       const late = !ok && r.call_day < today;
