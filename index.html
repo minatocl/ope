@@ -954,7 +954,7 @@ function App() {
     const [isConsult, setIsConsult] = useState(false);
     // ブラウザの「戻る」で予約サイトから出てしまわないよう、画面遷移を履歴に積む
     const navRef = useRef({ fromPop: false });
-    navRef.current.state = { selDate, selTime, treatCount: treatSel.length, pScreen };
+    navRef.current.state = { selDate, selTime, treatCount: treatSel.length, pScreen, consentChecked };
     useEffect(() => {
         window.history.replaceState({ s: "landing" }, "");
         const onPop = (e) => {
@@ -969,7 +969,11 @@ function App() {
                 target = "landing";
             if (["form", "confirm"].includes(target) && (!cur.selDate || !cur.selTime || cur.treatCount === 0))
                 target = "landing";
-            navRef.current.fromPop = true;
+            // 同意のチェックを外したまま、ブラウザの「進む」で同意より先の画面へ行こうとしたら、同意画面に戻す
+            if (["calendar", "time", "form", "confirm"].includes(target) && !cur.consentChecked)
+                target = "consent";
+            // 行き先がいまと同じ画面のときは画面が切り替わらないので、目印を残さない(残すと次の画面移動が履歴に積まれなくなる)
+            navRef.current.fromPop = target !== cur.pScreen;
             setError("");
             setPScreen(target);
         };
@@ -1047,6 +1051,12 @@ function App() {
         return Object.keys(e).length === 0;
     }
     async function submitBooking() {
+        // 同意のチェックが外れた状態では予約を送らない(ブラウザの「戻る」「進む」で同意画面を飛ばした場合の歯止め)
+        if (!consentChecked) {
+            setError("");
+            setPScreen("consent");
+            return;
+        }
         setSubmitting(true);
         setError("");
         try {

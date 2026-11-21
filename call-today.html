@@ -60,8 +60,15 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const LANG_LABEL = { ja: "日本語", en: "English", zh: "中文", pt: "Português", es: "Español", th: "ไทย", vi: "Tiếng Việt" };
 const REFRESH_MS = 60 * 1000;
 const main = document.getElementById("main");
-let code = localStorage.getItem("chisho_call_code") || "";
+// パスコードの保存。保存が禁止されている環境(別サイトへの埋め込みなど)でも止まらないようにし、その場合は開いている間だけ覚える
+const store = {
+  get() { try { return localStorage.getItem("chisho_call_code") || ""; } catch (e) { return ""; } },
+  set(v) { try { localStorage.setItem("chisho_call_code", v); } catch (e) {} },
+  clear() { try { localStorage.removeItem("chisho_call_code"); } catch (e) {} },
+};
+let code = store.get();
 let timer = null;
+let gen = 0; // 読み込みの通し番号。あとから始まった読み込みやパスコードの入れ直しがあれば、古い読み込みの結果は捨てる
 
 async function rpc(fn, body) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
@@ -93,7 +100,7 @@ function gate(msg) {
     try {
       const ok = await rpc("check_call_code", { p_code: v });
       if (ok !== true) return gate("パスコードがちがいます");
-      code = v; localStorage.setItem("chisho_call_code", v); load();
+      code = v; store.set(v); load();
     } catch (e) { gate("つながりませんでした。もう一度ためしてください"); }
   };
   document.getElementById("go").onclick = go;
@@ -101,15 +108,26 @@ function gate(msg) {
 }
 
 async function load() {
+  const my = ++gen; // この読み込みの番号。待っている間に別の読み込みやパスコードの入れ直しが始まったら、この結果は捨てる
   if (!code) return gate();
+  const used = code;
   let rows;
-  try { rows = await rpc("get_call_list", { p_code: code }); }
-  catch (e) { main.innerHTML = `<p class="empty err">読み込めませんでした(${esc(e.message)})。しばらくして自動で再試行します</p>`; schedule(); return; }
+  try { rows = await rpc("get_call_list", { p_code: used }); }
+  catch (e) { if (my !== gen) return; main.innerHTML = `<p class="empty err">読み込めませんでした(${esc(e.message)})。しばらくして自動で再試行します</p>`; schedule(); return; }
+  if (my !== gen) return;
   const today = todayStr();
   document.getElementById("today").textContent = `今日 ${jp(today)}`;
   document.getElementById("updated").innerHTML = `${new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })} 更新 ・ 1分ごとに自動更新 ・ <a href="#" id="relogin" style="color:inherit">パスコード変更</a>`;
-  document.getElementById("relogin").onclick = (e) => { e.preventDefault(); localStorage.removeItem("chisho_call_code"); code = ""; gate(); };
+  document.getElementById("relogin").onclick = (e) => { e.preventDefault(); gen++; clearTimeout(timer); store.clear(); code = ""; gate(); };
   if (rows.length === 0) {
+    // 0件のときは、保存してあるパスコードが古くなっていないかを確かめる。
+    // パスコードが変わると一覧は空で返るので、確かめないと「電話する人がいない」と見分けがつかない。
+    main.innerHTML = `<p class="empty">確認中…</p>`; // 確かめている間、前の一覧のボタンを残さない
+    let valid = null;
+    try { valid = (await rpc("check_call_code", { p_code: used })) === true; } catch (e) { valid = null; }
+    if (my !== gen) return;
+    if (valid === false) { store.clear(); code = ""; return gate("パスコードが変わりました。新しいパスコードを入れてください"); }
+    if (valid === null) { main.innerHTML = `<p class="empty err">読み込めませんでした。しばらくして自動で再試行します</p>`; schedule(); return; }
     main.innerHTML = `<p class="empty">今日電話する予約はありません</p>`;
     schedule(); return;
   }
